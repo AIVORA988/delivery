@@ -1,0 +1,4 @@
+interface:
+  display_name: "delivery V1.0"
+  short_description: "需求方案与任务拆分前置，审批后执行闭环，按本期范围整体验收并更新知识"
+  default_prompt: "使用 $delivery 整理当前需求、方案、任务拆分和验收约定，提交审批后在授权范围内连续执行。"
