@@ -8,6 +8,12 @@
 
 A project-local Agent Skill for incremental work and the first usable slice of a new project. Workflow V1.0, package 1.0.0, Python 3.10+, standard library only.
 
+## Workflow architecture
+
+[![delivery V1.0 workflow architecture](docs/architecture.png)](docs/architecture.png)
+
+[View the full-resolution diagram (Chinese)](docs/architecture.png)
+
 ## Start
 
 Ask your agent to install `skills/delivery` from this repository into the target project's `.agents/skills/delivery`, preserve existing rules, then run inspect → init → check. See [START.md](START.md) for paths and conflict handling.

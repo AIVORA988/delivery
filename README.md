@@ -14,7 +14,13 @@ delivery 将**需求 → 现状 → 方案 → 任务拆分 → 审批 → 执�
 
 你负责目标、关键决策和接收；Agent 准备材料、按批准范围连续执行、整理证据和更新文档。用已有项目工具完成工作，不依赖固定模型、MCP 或云服务。
 
-**[快速接入](#一分钟接入) · [运行演示](#先看它如何工作) · [使用手册](docs/usage.md) · [工作流规范](skills/delivery/SKILL.md)**
+**[架构流程图](#架构流程图) · [快速接入](#一分钟接入) · [运行演示](#先看它如何工作) · [使用手册](docs/usage.md) · [工作流规范](skills/delivery/SKILL.md)**
+
+## 架构流程图
+
+[![delivery V1.0 架构流程图](docs/architecture.png)](docs/architecture.png)
+
+[查看高清原图](docs/architecture.png)
 
 ## 一分钟接入
 
@@ -66,13 +72,6 @@ python examples/try_delivery.py
 | Loop | 执行、验证、诊断、修复、重验 | 当前任务按本期必需验收判定，累计限制保留 |
 | Acceptance | 需求覆盖、任务集成、异常回归与实际接收 | 本期必需检查和必要交付材料齐备 |
 | Knowledge | 决策、实现、运行说明、证据与后续入口 | 按当前事实及时更新，后续实测补充 |
-
-<details>
-<summary>展开完整架构流程图</summary>
-
-![delivery V1.0 架构流程图](docs/architecture.png)
-
-</details>
 
 ## 为交付补上的六个检查点
 
