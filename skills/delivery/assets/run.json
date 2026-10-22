@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "draft",
+  "title": "待定义需求",
+  "scope": "待明确本期目标与非目标",
+  "tasks": [],
+  "approval": {
+    "decision": "PENDING",
+    "reviewer": "",
+    "at": "",
+    "source": "",
+    "plan_sha256": "",
+    "graph_sha256": "",
+    "tasks": [],
+    "paths": [],
+    "operations": [],
+    "limits": {"max_repairs": null, "max_minutes": null}
+  },
+  "evidence": [],
+  "overall": {
+    "checks": [],
+    "accepted_by": "",
+    "accepted_at": "",
+    "source": ""
+  },
+  "followups": [],
+  "handoff": {
+    "artifacts": [],
+    "docs": [],
+    "knowledge": {"status": "PENDING", "refs": [], "reason": ""},
+    "resume": "先调查需求，形成前期材料，再提交审批"
+  }
+}

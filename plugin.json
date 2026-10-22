@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "delivery",
+  "version": "1.0.0",
+  "description": "Plan with intent. Execute with approval. Deliver with evidence.",
+  "author": {"name": "Long", "url": "https://github.com/longzhang2026-sudo"},
+  "homepage": "https://github.com/longzhang2026-sudo/delivery",
+  "repository": "https://github.com/longzhang2026-sudo/delivery",
+  "license": "MIT",
+  "keywords": ["agent-skills", "codex", "delivery", "approval", "verification"]
+}

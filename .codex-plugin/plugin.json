@@ -1,0 +1,17 @@
+{
+  "name": "delivery",
+  "version": "1.0.0",
+  "description": "从需求与方案，到审批后的执行闭环与有证据的本期交付。",
+  "author": {"name": "Long", "url": "https://github.com/longzhang2026-sudo"},
+  "homepage": "https://github.com/longzhang2026-sudo/delivery",
+  "repository": "https://github.com/longzhang2026-sudo/delivery",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "delivery",
+    "shortDescription": "先把需求与方案想清楚，审批后执行，按约定证据交付。",
+    "developerName": "Long",
+    "category": "Productivity",
+    "defaultPrompt": "使用 $delivery 检查项目接入状态，整理需求、方案和任务拆分，提交审批后按约交付。"
+  }
+}

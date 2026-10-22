@@ -1,66 +1,131 @@
-# delivery V1.0
+<p align="center"><img src="docs/banner.svg" alt="delivery — Plan. Approve. Deliver." width="100%"></p>
 
-面向存量系统增量开发与全新项目开发的 AI 研发交付 Skill。重需求、重方案、重任务拆分；审批后连续执行，按本期约定整体验收，文档与知识及时更新。
+<p align="center">
+  <a href="https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml"><img src="https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-33bda7" alt="MIT"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/workflow-V1.0-2563eb" alt="Workflow V1.0"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776ab" alt="Python 3.10+">
+  <a href="README.en.md">English</a>
+</p>
+
+# 先把需求想清楚，再让 Agent 跑得稳
+
+delivery 将**需求 → 现状 → 方案 → 任务拆分 → 审批 → 执行闭环 → 整体验收 → 知识沉淀**组织成可接手的工作流。适用于存量系统增量开发与全新项目首个业务闭环。
+
+你负责目标、关键决策和接收；Agent 准备材料、按批准范围连续执行、整理证据和更新文档。用已有项目工具完成工作，不依赖固定模型、MCP 或云服务。
+
+**[快速接入](#一分钟接入) · [运行演示](#先看它如何工作) · [使用手册](docs/usage.md) · [工作流规范](skills/delivery/SKILL.md)**
+
+## 一分钟接入
+
+在目标项目中，把这一条请求交给 Codex 或兼容 Agent：
+
+```text
+把 https://github.com/longzhang2026-sudo/delivery/tree/main/skills/delivery
+直接安装到当前项目 .agents/skills/delivery，保留已有规则与本地修改。
+使用项目内脚本完成 inspect → init → check，识别实际 build/test/run 入口。
+先为我的需求准备方案、任务拆分和验收约定，提交审批后再实施。
+```
+
+已有同名 Skill 时先比较差异。只安装到当前项目；首次接入不改业务代码、不改 AGENTS 和全局设置。静态安装成功是 **CONFIGURED**，实际运行情况单独记录。详细步骤与冲突处理见 [START.md](START.md)。
+
+安装后，从真实需求开始：
+
+```text
+$delivery 现有页面切换筛选后仍停留在旧页码。
+先调查旧逻辑，给出必要修改、任务拆分和本期验收方案，等我审批。
+```
+
+```text
+$delivery 我批准这份方案和当前批次，按约定范围与限制执行，
+完成后做整体验收，更新运行说明和有价值的知识。
+```
+
+## 先看它如何工作
+
+```bash
+python examples/try_delivery.py
+```
+
+一个隔离的本地演示会实际运行样例检查，依次展示：
+
+1. 草稿尚未批准，不能进入执行。
+2. 测试夹具批准后，范围内任务可以执行。
+3. 本期任务、整体验收与交接满足，正式环境专项仍独立未验证。
+4. 修改已检查源码后，旧 PASS 自动失效。
+
+演示使用临时目录和虚构审批，不访问外部业务系统，不代表真实项目已经通过。逐步解释见 [本地交付示例](examples/local-delivery.md)。
+
+## 一次规划，一处审批，范围内连续执行
+
+| 环节 | 重点产物 | 进入下一步的依据 |
+| --- | --- | --- |
+| Mission / Explore | 目标、边界、不变量、来源与差异 | 主要需求可判断，现状和关键未知项清楚 |
+| Contract / Graph | 业务技术方案、任务依赖、本期验收、阶段授权 | 任务可执行、可检查、可交接 |
+| 审批关口 | 实际确认、批准版本、任务批次与允许操作 | 方案、任务与验收方式一起批准 |
+| Loop | 执行、验证、诊断、修复、重验 | 当前任务按本期必需验收判定，累计限制保留 |
+| Acceptance | 需求覆盖、任务集成、异常回归与实际接收 | 本期必需检查和必要交付材料齐备 |
+| Knowledge | 决策、实现、运行说明、证据与后续入口 | 按当前事实及时更新，后续实测补充 |
+
+<details>
+<summary>展开完整架构流程图</summary>
 
 ![delivery V1.0 架构流程图](docs/architecture.png)
 
-## 安装到项目
+</details>
 
-在目标项目中让支持 Skill 的 Agent 执行：
+## 为交付补上的六个检查点
 
-```text
-请将 https://github.com/longzhang2026-sudo/delivery 中的 skills/delivery
-安装到当前项目的 .agents/skills/delivery，仅作用于当前项目。
-保留已有规则；已有同名 Skill 时先比较差异，不直接覆盖。
-```
+- **审批绑定当前方案**：计划与 Graph 定义的摘要绑定审批；改验收、范围或依赖会使旧批准过期，常规进度更新不会。
+- **任务依赖与批次边界**：检测依赖环、缺失任务、越过依赖和超出当前批准批次的活动。
+- **PASS 绑定被检查对象**：源码 / 产物与原始报告摘要改变，相关当前结果回到未验证；历史证据保留。
+- **修复可以收敛和恢复**：登记修复与时间累计，空限制不代表无限重试，中断保留原因与入口。
+- **任务完成与整体验收分开**：全部任务 DONE 之后，还检查整体需求、集成结果、接收记录和必要交接材料。
+- **本期与后续分别判断**：已批准为后续的真实环境专项独立管理；文档与知识可以根据设计、实现和已执行检查及时更新。
 
-私有仓库需使用已有 GitHub 访问权限。也可检出仓库，将 `skills/delivery` 完整复制到目标项目的 `.agents/skills/delivery`，包含全部引用文件和模板。Codex 项目级发现规则见 [OpenAI 官方说明](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills)。若安装后未出现，重新打开会话或重启客户端。
+校验器只核对记录和所引用文件，不运行项目测试、不认证审批身份，也不证明报告未伪造。规则、工具和实际业务判断共同完成交付。
 
-其他 Agent 可读取 `skills/delivery/SKILL.md` 并按需读取相对引用；是否自动发现或支持 `$delivery` 取决于宿主能力。Skill 无额外运行依赖，构建和验证复用目标项目工具。
+## 验收有范围，证据有边界
 
-## 最简单的用法
+本地、Mock、测试服务、源码审查或演示，都可以在批准范围内支持本期验收。只有本期明确要求的真实检查才成为本期门槛；不能把未通过的必需项自行挪到后续。
 
-**先出方案：**
+例如，本期约定交付页面与接口契约，使用本地和 Mock 验证业务路径；正式账号或部署联调已批准为后续。当前约定验收与交接满足时，可以确认**本期研发交付完成**，同时保留正式联调的 **NOT_VERIFIED**。文档知识现在更新，实测结果以后补充。
 
-```text
-$delivery 我要实现【需求】。先调查现状，形成需求、方案、任务拆分和
-本期验收约定，提交我审批；暂不修改业务代码。
-```
-
-**方案通过后执行：**
+## 轻量接入，保留你的项目习惯
 
 ```text
-$delivery 我批准这份方案和任务清单，按其中的执行范围与限制实施本批次。
-在范围内连续执行、验证和修复，最后做整体验收并更新交付文档。
+your-project/
+├── AGENTS.md                         原有规则保持原样
+├── .agents/skills/delivery/           项目内 Skill、脚本和参考规则
+└── .delivery/
+    ├── project.json                  公共命令、规则与知识位置
+    ├── install.json                  安装摘要与冲突检查
+    └── runs/first-slice/
+        ├── plan.md                   供审批阅读的方案
+        └── record.json               Agent 维护任务、证据与交接
 ```
 
-**中断后继续：**
+已有可靠的计划与记录可以继续使用规则模式；孤立排查和微小修复沿用项目轻量流程。机器记录由 Agent 维护，使用者无需填写 JSON、内部编号或摘要。
 
-```text
-$delivery 继续当前已批准批次。先核对实际工作区、任务、证据和累计限额，
-从上次入口恢复，不重复已完成且仍有效的检查。
-```
+## 文档与示例
 
-也可指定“只执行 T02”“只做本期验收”“补充后续真实环境专项结果”。已有审批在适用范围内继续有效。
-
-## 工作方式
-
-`Mission → Explore → Contract → Graph → 审批关口 → Loop → Acceptance → Knowledge`
-
-- 前四阶段准备目标、事实、方案、任务依赖和验收方法，集中审批。
-- Loop 在已批准范围内执行、检查、诊断、修复与重验；缺少必需条件、待决策、到限或无进展时保存入口。
-- 整体验收检查需求及任务组合，采用已批准的方法。真实环境并非所有任务的统一前置条件；已列后续的专项保持未验证，本期可按约完成。
-- 文档和知识随决策、实现、检查更新，后续实测再补充。用户负责目标、审批和接收，Agent 维护编号、状态与证据。
-
-## 文件入口
-
-| 文件 | 用途 |
+| 入口 | 适合谁 / 解决什么 |
 | --- | --- |
-| [SKILL.md](skills/delivery/SKILL.md) | 主入口与七阶段职责 |
-| [planning.md](skills/delivery/references/planning.md) | 前期设计、任务和审批 |
-| [execution.md](skills/delivery/references/execution.md) | Loop、证据、验收、知识与恢复 |
-| [delivery-plan.md](skills/delivery/assets/delivery-plan.md) | 可裁剪的单篇主清单模板 |
-| [详细设计 PDF](docs/delivery-v1.0.pdf) | 完整设计说明 |
-| [检查记录](docs/validation.md) | 封装检查及验证边界 |
+| [START.md](START.md) | 第一次安装和接入项目 |
+| [使用手册](docs/usage.md) | 规划、批准、执行、验收与恢复 |
+| [Skill 主入口](skills/delivery/SKILL.md) | Agent 的七阶段职责和按需路由 |
+| [项目接入](skills/delivery/references/setup.md) | 安装、升级、配置和故障处理 |
+| [记录契约](skills/delivery/references/record.md) | 内部状态、审批摘要与证据校验 |
+| [本地交付示例](examples/local-delivery.md) | 可运行场景与输出解释 |
+| [验证与限制](docs/validation.md) | 自动测试、CI 与尚未验证的部分 |
+| [设计原则](docs/design.md) | Agent 无关、轻量记录与适用边界 |
 
-这是供 Agent 读取的流程与模板包，实际执行依赖宿主工具、项目能力和有效授权。Skill 不自行启动后台任务，不自动授予发布、外部写入或无限重试权限。工作流实际效果仍需项目试点验证。
+## 开源与当前成熟度
+
+工作流 **V1.0**，分发包 **1.0.0**，Python **3.10+**，仅标准库。支持直接复制 Skill 或使用项目接入脚本，另附便携与 Codex 兼容插件清单；未提交任何插件市场认证。
+
+已建立可重复的安装、审批、证据、验收与恢复检查。真实跨项目交付、记录成本和提效幅度仍需试点。这里没有后台调度器、操作系统权限沙箱或自动生产发布。
+
+[MIT License](LICENSE) · [贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [版本记录](CHANGELOG.md)
+
+项目接入与证据校验的工程经验参考了同作者的 [Aegis Delivery](https://github.com/longzhang2026-sudo/aegis-delivery)，本工作流的审批与本期验收口径以当前规范为准。
