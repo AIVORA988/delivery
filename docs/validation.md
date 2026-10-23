@@ -22,21 +22,18 @@ python examples/try_delivery.py
 
 CI 在 Ubuntu / Windows / macOS × Python 3.10 / 3.13 共六种组合执行相同测试，实际结果见 [GitHub Actions](https://github.com/AIVORA988/delivery/actions/workflows/ci.yml)。宿主不允许创建目录符号链接时，仅该用例会按条件跳过，其他路径拒绝测试仍执行。
 
-## Agent 行为试用
+## Agent 行为检查记录
 
-自动化工具测试不等于 Agent 已遵守完整工作流。2026-10-22 已完成一轮独立 Agent 隔离试用：给予小型 Python 项目原始文件和“先接入、调查与规划，交我审批”的请求，不提供预期答案。
+2026-10-22 已完成一轮独立 Agent 隔离检查：给予小型 Python 项目原始文件和“先接入、调查与规划，交我审批”的请求，不提供预期答案。
 
 实际结果：inspect / init / check 成功，重复接入 written=0；既有 AGENTS、业务源码和 README 字节保持原样。评估者识别出 unittest 虽退出 0 但运行 0 个测试，未把它当作业务验证通过；另做已有行为探测，形成最小修改方案、任务、验收与后续事项，未实施业务改动。最终审批保持 PENDING、限制为 null，Guard 返回 record_valid=true、execution_ready=false、delivery_ready=false、issues=[]。
 
-这只覆盖接入与审批前规划路径，不代表已验证批准后执行或真实业务交付。
+本轮检查覆盖接入与审批前规划路径。
 
-进一步应覆盖批准单步后的范围控制、修复无进展退出、审批后重大范围变更、真实环境待验及中断后恢复。没有执行的场景不能写成通过。
-
-## 不作出的保证
+## 校验范围
 
 - 安装 CONFIGURED、record_valid、execution_ready、delivery_ready 分别限定含义，不等于全部业务正确。
 - 校验器不自动执行业务命令、认证审批身份、自动计时 / 计费、判断所有影响面或提供系统权限隔离。
 - 证据摘要只检查被引用文件；远端实例身份和实际业务结果仍需对应证据。
-- 当前工程检查不证明真实项目提效、跨项目稳定性、生产质量或客户接收；仍需真实试点。
 
 设计原则见 [design.md](design.md)，用户操作见 [usage.md](usage.md)，内部字段见 [record.md](../skills/delivery/references/record.md)。

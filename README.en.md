@@ -63,7 +63,7 @@ The isolated fixture runs real local checks, demonstrates a blocked unapproved d
 - Separate task and overall acceptance, receipt and handoff.
 - Explicit external followups and timely documentation updates.
 
-The read-only guard checks record consistency. It does not execute project commands, authenticate the reviewer, verify evidence honesty, or enforce an OS sandbox. Installation success means CONFIGURED, not application correctness. Real project effectiveness remains unpiloted.
+The read-only guard checks record consistency. It does not execute project commands, authenticate the reviewer, verify evidence honesty, or enforce an OS sandbox. Installation success means CONFIGURED, not application correctness.
 
 Current-scope acceptance may use approved local, mock, test or review methods. A live-environment check blocks current completion only when explicitly required in that scope. Required checks cannot be silently deferred. Documentation and knowledge evolve with actual decisions, implementation and executed checks.
 

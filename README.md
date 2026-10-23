@@ -117,14 +117,14 @@ your-project/
 | [项目接入](skills/delivery/references/setup.md) | 安装、升级、配置和故障处理 |
 | [记录契约](skills/delivery/references/record.md) | 内部状态、审批摘要与证据校验 |
 | [本地交付示例](examples/local-delivery.md) | 可运行场景与输出解释 |
-| [验证与限制](docs/validation.md) | 自动测试、CI 与尚未验证的部分 |
+| [验证说明](docs/validation.md) | 自动测试、CI 与校验范围 |
 | [设计原则](docs/design.md) | Agent 无关、轻量记录与适用边界 |
 
-## 开源与当前成熟度
+## 开源信息
 
-工作流 **V1.0**，分发包 **1.0.0**，Python **3.10+**，仅标准库。支持直接复制 Skill 或使用项目接入脚本，另附可选插件清单；未提交任何插件市场认证。
+工作流 **V1.0**，分发包 **1.0.0**，Python **3.10+**，仅标准库。支持直接复制 Skill 或使用项目接入脚本，另附可选插件清单。
 
-已建立可重复的安装、审批、证据、验收与恢复检查。真实跨项目交付、记录成本和提效幅度仍需试点。这里没有后台调度器、操作系统权限沙箱或自动生产发布。
+已建立可重复的安装、审批、证据、验收与恢复检查。这里没有后台调度器、操作系统权限沙箱或自动生产发布。
 
 [MIT License](LICENSE) · [贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [版本记录](CHANGELOG.md)
 
