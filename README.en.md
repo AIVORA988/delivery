@@ -54,6 +54,22 @@ python -m unittest discover -s tests -v
 
 The isolated fixture runs real local checks, demonstrates a blocked unapproved draft, current-scope completion with an unverified external followup, then invalidates evidence after source changes. Fixture approvals are synthetic, not real project acceptance.
 
+## Workflow details
+
+Click a diagram to view the full-resolution original (Chinese). See [Usage](docs/usage.md) for the corresponding steps.
+
+### 01 · Approval and authorization gate
+
+[![01 · Approval and authorization gate](docs/diagrams/01-approval-gate.png)](docs/diagrams/01-approval-gate.png)
+
+### 02 · Execution and repair loop
+
+[![02 · Execution and repair loop](docs/diagrams/02-execution-loop.png)](docs/diagrams/02-execution-loop.png)
+
+### 03 · Acceptance and evidence loop
+
+[![03 · Acceptance and evidence loop](docs/diagrams/03-acceptance-evidence.png)](docs/diagrams/03-acceptance-evidence.png)
+
 ## What it checks
 
 - Plan and task-definition hashes bound to the recorded approval.
