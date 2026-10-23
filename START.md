@@ -21,7 +21,7 @@ Agent 读取 [接入规则](skills/delivery/references/setup.md)，具体项目�
 需要 Python 3.10+，无 pip 依赖。目标项目目录须已存在；下面命令在 delivery 仓库根目录执行，替换实际项目位置。
 
 ```bash
-git clone https://github.com/longzhang2026-sudo/delivery.git
+git clone https://github.com/AIVORA988/delivery.git
 cd delivery
 python skills/delivery/scripts/delivery.py inspect --project ../your-project
 python skills/delivery/scripts/delivery.py init --project ../your-project

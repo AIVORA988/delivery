@@ -4,7 +4,7 @@
 
 **Plan with intent. Execute with approval. Deliver with evidence.**
 
-[中文](README.md) · [MIT](LICENSE) · [CI](https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml)
+[中文](README.md) · [MIT](LICENSE) · [CI](https://github.com/AIVORA988/delivery/actions/workflows/ci.yml)
 
 A project-local Agent Skill for incremental work and the first usable slice of a new project. Workflow V1.0, package 1.0.0, Python 3.10+, standard library only.
 

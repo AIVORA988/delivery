@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/banner.svg" alt="delivery — Plan. Approve. Deliver." width="100%"></p>
 
 <p align="center">
-  <a href="https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml"><img src="https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/AIVORA988/delivery/actions/workflows/ci.yml"><img src="https://github.com/AIVORA988/delivery/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-33bda7" alt="MIT"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/workflow-V1.0-2563eb" alt="Workflow V1.0"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776ab" alt="Python 3.10+">
@@ -27,7 +27,7 @@ delivery 将**需求 → 现状 → 方案 → 任务拆分 → 审批 → 执�
 在目标项目中，把这一条请求交给 Codex 或兼容 Agent：
 
 ```text
-把 https://github.com/longzhang2026-sudo/delivery/tree/main/skills/delivery
+把 https://github.com/AIVORA988/delivery/tree/main/skills/delivery
 直接安装到当前项目 .agents/skills/delivery，保留已有规则与本地修改。
 使用项目内脚本完成 inspect → init → check，识别实际 build/test/run 入口。
 先为我的需求准备方案、任务拆分和验收约定，提交审批后再实施。
@@ -127,4 +127,4 @@ your-project/
 
 [MIT License](LICENSE) · [贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [版本记录](CHANGELOG.md)
 
-项目接入与证据校验的工程经验参考了同作者的 [Aegis Delivery](https://github.com/longzhang2026-sudo/aegis-delivery)，本工作流的审批与本期验收口径以当前规范为准。
+项目接入与证据校验的工程经验参考了同作者的 [Aegis Delivery](https://github.com/AIVORA988/aegis-delivery)，本工作流的审批与本期验收口径以当前规范为准。

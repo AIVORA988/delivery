@@ -26,4 +26,4 @@ Guard 检查审批摘要、Graph、累计用量、证据文件和完成组合。
 
 工作流名称 delivery，版本 V1.0；分发包采用 SemVer 1.0.0。规则来自用户确认的七阶段设计与架构图，以及需求前置、审批执行、本期验收和及时知识更新原则。
 
-工程接入、安装冲突保护和校验边界参考同作者的 [Aegis Delivery](https://github.com/longzhang2026-sudo/aegis-delivery)。本项目重新实现当前契约，不自动继承旧协议的固定真实环境门槛、角色或默认预算。Skill / 插件格式参考 [OpenAI 官方说明](https://developers.openai.com/plugins/build/plugins)。
+工程接入、安装冲突保护和校验边界参考同作者的 [Aegis Delivery](https://github.com/AIVORA988/aegis-delivery)。本项目重新实现当前契约，不自动继承旧协议的固定真实环境门槛、角色或默认预算。Skill / 插件格式参考 [OpenAI 官方说明](https://developers.openai.com/plugins/build/plugins)。

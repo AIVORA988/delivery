@@ -20,7 +20,7 @@ python examples/try_delivery.py
 | 知识与分发 | 待同步稿可交接、必要文档、包元数据、本地链接、分发无敏感凭证和不需要的文档附件 |
 | 端到端工具 | 从 inspect / init / check / new 到审批、实际本地检查、交接和源码变更后的证据失效 |
 
-CI 在 Ubuntu / Windows / macOS × Python 3.10 / 3.13 共六种组合执行相同测试，实际结果见 [GitHub Actions](https://github.com/longzhang2026-sudo/delivery/actions/workflows/ci.yml)。宿主不允许创建目录符号链接时，仅该用例会按条件跳过，其他路径拒绝测试仍执行。
+CI 在 Ubuntu / Windows / macOS × Python 3.10 / 3.13 共六种组合执行相同测试，实际结果见 [GitHub Actions](https://github.com/AIVORA988/delivery/actions/workflows/ci.yml)。宿主不允许创建目录符号链接时，仅该用例会按条件跳过，其他路径拒绝测试仍执行。
 
 ## Agent 行为试用
 

@@ -2,9 +2,9 @@
   "name": "delivery",
   "version": "1.0.0",
   "description": "从需求与方案，到审批后的执行闭环与有证据的本期交付。",
-  "author": {"name": "Long", "url": "https://github.com/longzhang2026-sudo"},
-  "homepage": "https://github.com/longzhang2026-sudo/delivery",
-  "repository": "https://github.com/longzhang2026-sudo/delivery",
+  "author": {"name": "Long", "url": "https://github.com/AIVORA988"},
+  "homepage": "https://github.com/AIVORA988/delivery",
+  "repository": "https://github.com/AIVORA988/delivery",
   "license": "MIT",
   "skills": "./skills/",
   "interface": {
