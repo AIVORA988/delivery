@@ -128,4 +128,3 @@ your-project/
 
 [MIT License](LICENSE) · [贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [版本记录](CHANGELOG.md)
 
-项目接入与证据校验的工程经验参考了同作者的 [Aegis Delivery](https://github.com/AIVORA988/aegis-delivery)，本工作流的审批与本期验收口径以当前规范为准。
