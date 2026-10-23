@@ -1,4 +1,4 @@
-# 一个可运行的本地交付示例
+# 本地交付示例
 
 ```bash
 python examples/try_delivery.py
@@ -16,7 +16,7 @@ python examples/try_delivery.py
 | C2 整体场景 | 启动命令行程序，核对输入和 stdout，保存实际报告 |
 | 后续 F01 | 保留 NOT_VERIFIED 和接手入口，不访问远端服务 |
 
-## 应观察到的结果
+## 预期输出
 
 ```json
 {

@@ -1,7 +1,7 @@
 {
   "name": "delivery",
   "version": "1.0.0",
-  "description": "从需求与方案，到审批后的执行闭环与有证据的本期交付。",
+  "description": "面向 AI Agent 的轻量级研发交付工作流，涵盖需求与方案基线、人工审批授权、受控执行、基于证据的验收与知识沉淀。",
   "author": {"name": "Long", "url": "https://github.com/AIVORA988"},
   "homepage": "https://github.com/AIVORA988/delivery",
   "repository": "https://github.com/AIVORA988/delivery",
@@ -9,7 +9,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "delivery",
-    "shortDescription": "先把需求与方案想清楚，审批后执行，按约定证据交付。",
+    "shortDescription": "需求与方案前置、人工审批授权、受控执行与基于证据验收。",
     "developerName": "Long",
     "category": "Productivity",
     "defaultPrompt": "使用 $delivery 检查项目接入状态，整理需求、方案和任务拆分，提交审批后按约交付。"

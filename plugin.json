@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "delivery",
   "version": "1.0.0",
-  "description": "Plan with intent. Execute with approval. Deliver with evidence.",
+  "description": "A lightweight, agent-agnostic workflow for approval-gated, evidence-based software delivery.",
   "author": {"name": "Long", "url": "https://github.com/AIVORA988"},
   "homepage": "https://github.com/AIVORA988/delivery",
   "repository": "https://github.com/AIVORA988/delivery",

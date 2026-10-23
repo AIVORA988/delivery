@@ -2,7 +2,7 @@
 
 工作流 V1.0，分发包 1.0.0。工程校验与真实项目效果分别记录。
 
-## 可重复的检查
+## 可复现的工程检查
 
 ```bash
 python -m unittest discover -s tests -v
