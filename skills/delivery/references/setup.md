@@ -1,6 +1,6 @@
 # 项目接入与维护
 
-脚本只使用 Python 3.10+ 标准库。没有 Python 时可按 Skill 规则和项目既有 Markdown 工作；说明工具检查尚未执行，不宣称 CONFIGURED。不要自动安装全局运行时、改全局 Codex 配置或扩大项目权限。
+脚本只使用 Python 3.10+ 标准库。没有 Python 时可按 Skill 规则和项目既有 Markdown 工作；说明工具检查尚未执行，不宣称 CONFIGURED。不要自动安装全局运行时、改全局 Agent 配置或扩大项目权限。
 
 ## 初次接入
 

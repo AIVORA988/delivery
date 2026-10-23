@@ -14,37 +14,36 @@ A project-local Agent Skill for incremental work and the first usable slice of a
 
 [View the full-resolution diagram (Chinese)](docs/architecture.png)
 
-## Start
+## Quick start
 
-Ask your agent to install `skills/delivery` from this repository into the target project's `.agents/skills/delivery`, preserve existing rules, then run inspect → init → check. See [START.md](START.md) for paths and conflict handling.
+Use an agent that supports Skills in your target project and send these three prompts in order:
 
-```text
-$delivery Investigate this requirement and prepare the scope, design, task graph,
-acceptance methods and execution boundaries. Present it for approval before implementation.
-```
-
-After actual approval, continue within the approved batch. Existing valid approval carries across sessions. A request to execute only one task remains binding.
-
-## New user example
-
-For a shopping WeChat Mini Program with WeChat Pay, open Codex or a compatible agent in your target project directory and send:
+### 1. Install
 
 ```text
 Install the delivery Skill from https://github.com/AIVORA988/delivery
-into the current project and initialize it.
+into the current project and initialize it. Preserve existing rules and local changes.
+```
 
-Use $delivery to build a shopping WeChat Mini Program with product browsing,
+### 2. Describe the requirement
+
+```text
+Use the delivery Skill to build a shopping WeChat Mini Program with product browsing,
 a cart, checkout with WeChat Pay, and order lookup. First present the requirements,
 design, task breakdown and acceptance methods. Wait for my approval before implementation.
 ```
 
-After reviewing and approving the plan, send:
+### 3. Approve and execute
+
+Send this after reviewing and approving the plan:
 
 ```text
-$delivery I approve this plan and task scope. Start implementation, verify the result,
+I approve the current plan and task scope. Use the delivery Skill to implement it, verify the result,
 perform overall acceptance and update the usage instructions. Keep any live-payment
 checks pending when their prerequisites are unavailable.
 ```
+
+See [START.md](START.md) for manual installation and conflict handling.
 
 ## Run a local demonstration
 
