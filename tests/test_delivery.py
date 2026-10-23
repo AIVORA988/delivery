@@ -67,14 +67,40 @@ class DeliveryTests(unittest.TestCase):
     def complete(self):
         self.start()
         self.approve()
-        self.evidence("C1")
+        self.finish_task("T01")
+        self.accept()
+
+    def start_two_tasks(self):
+        self.start()
+        second = copy.deepcopy(self.record["tasks"][0])
+        second.update({"id": "T02", "title": "Second local feature", "state": "PENDING",
+                       "depends_on": ["T01"], "checks": [self.check_def("C3")]})
+        self.record["tasks"].append(second)
+        self.save()
+
+    def finish_task(self, tid):
+        task = next(t for t in self.record["tasks"] if t["id"] == tid)
+        for check in task["checks"]:
+            self.evidence(check["id"])
+        task["state"] = "DONE"
+        self.save()
+
+    def accept(self):
         self.evidence("C2")
-        self.record["tasks"][0]["state"] = "DONE"
         self.record["overall"].update({"accepted_by": "Fixture receiver",
             "accepted_at": "2026-10-22T10:10:00+08:00", "source": "Fixture acceptance"})
         self.record["handoff"].update({"artifacts": ["src.py"], "docs": ["README.md"],
             "knowledge": {"status": "NO_INCREMENT", "reason": "Sample README already sufficient"}})
         self.save()
+
+    def complete_two_batches(self):
+        self.start_two_tasks()
+        self.approve(["T01"])
+        self.finish_task("T01")
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.approve(["T02"])
+        self.finish_task("T02")
+        self.accept()
 
     def codes(self, result):
         return {x["code"] for x in result["issues"]}
@@ -201,6 +227,135 @@ class DeliveryTests(unittest.TestCase):
         self.record["tasks"][1]["state"] = "RUNNING"
         self.save()
         self.assertIn("EXECUTION_GATE", self.codes(d.guard(self.root, "sample")))
+
+    def test_authorized_done_task_can_deliver(self):
+        self.complete()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertTrue(result["delivery_ready"])
+
+    def test_unapproved_done_task_with_pass_evidence_cannot_deliver(self):
+        self.start_two_tasks()
+        self.approve(["T01"])
+        self.finish_task("T01")
+        self.finish_task("T02")
+        self.accept()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["check_results"], {"C1": "PASS", "C3": "PASS", "C2": "PASS"})
+        self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertTrue(any(i["code"] == "DONE_AUTHORIZATION" and i["field"] == "T02"
+                            for i in result["issues"]))
+        self.assertFalse(result["record_valid"])
+        self.assertFalse(result["delivery_ready"])
+
+    def test_unapproved_pending_task_is_not_an_unauthorized_done(self):
+        self.start_two_tasks()
+        self.approve(["T01"])
+        self.finish_task("T01")
+        self.accept()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertNotIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["delivery_ready"])
+
+    def test_done_from_retained_batch_survives_current_batch_change(self):
+        self.complete_two_batches()
+        before = self.record_path.read_bytes()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(self.record["approval"]["tasks"], ["T02"])
+        self.assertEqual(self.record["approval_history"][0]["tasks"], ["T01"])
+        self.assertTrue(result["record_valid"])
+        self.assertTrue(result["delivery_ready"])
+        for key, value in result["baseline"].items():
+            self.assertEqual(self.record["approval_history"][0][key], value)
+        self.assertEqual(self.record_path.read_bytes(), before)
+
+    def test_missing_history_is_not_inferred_from_done_or_pass(self):
+        self.complete_two_batches()
+        del self.record["approval_history"]
+        self.save()
+        before = self.record_path.read_bytes()
+        result = d.guard(self.root, "sample")
+        self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["delivery_ready"])
+        self.assertEqual(self.record_path.read_bytes(), before)
+
+    def test_retained_approval_does_not_authorize_new_activity(self):
+        self.complete_two_batches()
+        self.record["tasks"][0]["state"] = "RUNNING"
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertIn("EXECUTION_GATE", self.codes(result))
+        self.assertFalse(result["execution_ready"])
+        self.assertFalse(result["delivery_ready"])
+
+    def test_old_done_approval_cannot_cross_plan_or_graph_changes(self):
+        self.complete_two_batches()
+        original = copy.deepcopy(self.record)
+        plan_bytes = self.plan.read_bytes()
+        for change in ("plan", "graph"):
+            with self.subTest(change=change):
+                self.record = copy.deepcopy(original)
+                self.plan.write_bytes(plan_bytes)
+                if change == "plan":
+                    self.plan.write_text("Revised design requiring approval", encoding="utf-8")
+                else:
+                    self.record["tasks"][0]["title"] = "Revised task definition"
+                self.approve(["T02"])
+                self.evidence("C1")
+                self.evidence("C3")
+                self.evidence("C2")
+                result = d.guard(self.root, "sample")
+                self.assertEqual(result["check_results"], {"C1": "PASS", "C3": "PASS", "C2": "PASS"})
+                self.assertTrue(any(i["code"] == "DONE_AUTHORIZATION" and i["field"] == "T01"
+                                    for i in result["issues"]))
+                self.assertFalse(result["delivery_ready"])
+
+    def test_incomplete_or_out_of_scope_approval_history_is_rejected(self):
+        self.complete_two_batches()
+        original = copy.deepcopy(self.record)
+        changes = [
+            {"decision": "REJECTED"}, {"reviewer": ""}, {"at": ""}, {"source": " "},
+            {"plan_sha256": "invalid"}, {"tasks": ["missing"]}, {"paths": ["tests"]},
+            {"paths": ["../outside"]}, {"operations": []},
+            {"limits": {"max_repairs": None, "max_minutes": None}},
+            {"limits": {"max_repairs": True, "max_minutes": 60}},
+        ]
+        for changeset in changes:
+            with self.subTest(changeset=changeset):
+                self.record = copy.deepcopy(original)
+                self.record["approval_history"][0].update(changeset)
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertIn("APPROVAL_HISTORY", self.codes(result))
+                self.assertFalse(result["delivery_ready"])
+
+    def test_approval_history_requires_full_snapshots(self):
+        self.complete_two_batches()
+        for history in ({}, [None], ["T01 was DONE"], [{"tasks": ["T01"], "source": "Inferred from PASS"}]):
+            with self.subTest(history=history):
+                self.record["approval_history"] = history
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertIn("APPROVAL_HISTORY", self.codes(result))
+                self.assertFalse(result["delivery_ready"])
+
+    def test_retained_approval_does_not_hide_excess_repairs(self):
+        self.complete_two_batches()
+        self.record["tasks"][0]["repairs"] = 4
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["delivery_ready"])
+
+    def test_approval_history_does_not_replace_current_approval(self):
+        self.complete_two_batches()
+        self.record["approval_history"].append(copy.deepcopy(self.record["approval"]))
+        self.record["approval"]["decision"] = "PENDING"
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertNotIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["delivery_ready"])
 
     def test_scope_boundary_cannot_be_escaped(self):
         self.start()

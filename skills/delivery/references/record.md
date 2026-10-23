@@ -16,6 +16,7 @@
 | tasks | id、title、paths、depends_on、state、repairs、used_minutes、checks；异常任务补 note |
 | checks | 全局唯一 id，kind，method，expected；条件项补 trigger / reason |
 | approval | decision、reviewer、at、source、plan_sha256、graph_sha256、tasks、paths、operations、limits |
+| approval_history（可选） | 按批准顺序保留的历史 APPROVED 完整快照，字段与 approval 一致；省略等同空数组 |
 | evidence | 唯一 id、check、baseline、method、actual、result、at、producer、report、subjects |
 | overall | 独立 checks、accepted_by、accepted_at、source |
 | followups | id、goal、method、reason、required_for_scope=false、resume、status |
@@ -45,6 +46,12 @@
 
 decision 为 PENDING / APPROVED / CHANGES_REQUESTED / REJECTED。只有真实批准后才填审批人、时间和来源。Agent 从 Guard 输出取得当前 baseline 摘要，关联实际批准的计划、Graph、任务批次、路径和操作。
 
+切换批次覆盖 `approval` 前，将原有实际 APPROVED 记录完整保留到 `approval_history`；保留原审批人、时间、可追溯的真实确认来源、摘要、任务、路径、操作与限制，不改写为当前批次。Guard 只读校验，不自动保存或补造审批，也不会从 DONE、PASS 或上次总结推断历史授权。历史记录缺失时恢复可核验的原批准记录，或请有权限的审批人重新确认；不得由 Agent 自行补批。
+
+DONE 必须由有效的当前审批或历史快照覆盖。历史快照须与当前 plan / Graph 摘要一致，具有完整来源、任务范围、路径、允许操作及有效有限规则；累计修复不得超过该快照上限。旧基线快照仅保留历史，不证明当前授权。历史快照不授权 RUNNING / VERIFYING / REPAIRING 或下一任务；这些仍以当前 `approval` 为准。添加历史快照不改变 Graph 摘要，方案或 Graph 实质变更仍需复核批准与证据。
+
+审批来源的真实性仍须由执行方按实际授权核实；记录中的姓名、时间与 source 字段不构成身份认证或防伪证明。
+
 `limits.max_repairs` 为非负整数或 null，`max_minutes` 为正整数或 null；连续执行至少应有一个已确认的有限限制。null 是待配置，不等于无限。累计 repairs / used_minutes 不随恢复清零；次数约束下一次修复启动，最后一轮允许完成重验。Guard 只核对记录，Agent / 宿主负责实际计数和停止。
 
 ### 证据与版本
@@ -59,7 +66,7 @@ subjects 绑定本次检查的源码、配置或产物；报告记录实际命�
 
 ### 本期完成与后续
 
-DONE 只表示该任务当前适用必需检查通过且证据有效。全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
+DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查通过且证据有效。未经授权的 DONE 产生 DONE_AUTHORIZATION 问题并阻止交付。全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
 
 knowledge.status 为 PENDING / UPDATED / NO_INCREMENT / DRAFT_READY；UPDATED / DRAFT_READY 要有实际稿件引用，NO_INCREMENT 要有理由。知识库不可写时允许交接更新稿，后续同步不默认阻断本期。
 

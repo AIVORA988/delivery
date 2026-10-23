@@ -390,6 +390,48 @@ def guard(root: Path, run_id: str) -> dict:
         if any(not covered(p, boundaries) for p in tasks[tid]["paths"]):
             error("APPROVAL_SCOPE", tid, "Task paths exceed approved boundaries")
 
+    # Retained batches can justify DONE, never authorize new activity.
+    done_authorized = set(authorized) if valid_approval and policy_ready and not issues else set()
+    history = record.get("approval_history", [])
+    if not isinstance(history, list):
+        error("APPROVAL_HISTORY", "approval_history", "Expected retained approval snapshots")
+        history = []
+    for index, prior in enumerate(history):
+        field = f"approval_history[{index}]"
+        if (not isinstance(prior, dict) or prior.get("decision") != "APPROVED"
+                or not all(present(prior.get(k)) for k in ("reviewer", "at", "source"))
+                or not all(isinstance(prior.get(k), str) and re.fullmatch(r"[a-f0-9]{64}", prior[k])
+                           for k in baseline)):
+            error("APPROVAL_HISTORY", field, "Expected a complete original APPROVED snapshot and source")
+            continue
+        if any(prior[k] != value for k, value in baseline.items()):
+            continue
+        prior_tasks, prior_paths = prior.get("tasks"), prior.get("paths")
+        prior_operations, prior_limits = prior.get("operations"), prior.get("limits")
+        if (not strings(prior_tasks) or not prior_tasks or any(t not in tasks for t in prior_tasks)
+                or not strings(prior_paths) or not prior_paths
+                or not strings(prior_operations) or not prior_operations
+                or not isinstance(prior_limits, dict)):
+            error("APPROVAL_HISTORY", field, "Retained approval needs valid tasks, paths, operations and limits")
+            continue
+        prior_repairs, prior_minutes = prior_limits.get("max_repairs"), prior_limits.get("max_minutes")
+        if ((prior_repairs is not None and not count(prior_repairs))
+                or (prior_minutes is not None and (not count(prior_minutes) or prior_minutes == 0))
+                or not (count(prior_repairs) or (count(prior_minutes) and prior_minutes > 0))):
+            error("APPROVAL_HISTORY", field, "Retained approval needs a valid finite repair/time policy")
+            continue
+        try:
+            for boundary in prior_paths:
+                safe(root, boundary)
+        except ValueError:
+            error("APPROVAL_HISTORY", field, "Unsafe retained approval path")
+            continue
+        if any(not covered(p, prior_paths) for tid in prior_tasks for p in tasks[tid]["paths"]):
+            error("APPROVAL_HISTORY", field, "Task paths exceed retained approval boundaries")
+            continue
+        done_authorized.update(tid for tid in prior_tasks
+                               if not count(prior_repairs) or tasks[tid]["repairs"] <= prior_repairs)
+
     evidence, verdicts = {}, {}
     # Old baselines and superseded attempts remain history, not current verdicts.
     latest = {e.get("check"): e.get("id") for e in record["evidence"]
@@ -452,6 +494,8 @@ def guard(root: Path, run_id: str) -> dict:
     next_tasks = []
     for tid, task in tasks.items():
         deps_done = all(tasks[d]["state"] == "DONE" for d in task["depends_on"])
+        if task["state"] == "DONE" and tid not in done_authorized:
+            error("DONE_AUTHORIZATION", tid, "DONE requires current or retained execution approval for this baseline")
         if task["state"] == "DONE" and not checks_pass(task["checks"]):
             error("FALSE_DONE", tid, "Required current acceptance/evidence is incomplete")
         if task["state"] in ACTIVE and (not valid_approval or tid not in authorized or not deps_done):
