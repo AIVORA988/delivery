@@ -25,6 +25,27 @@ acceptance methods and execution boundaries. Present it for approval before impl
 
 After actual approval, continue within the approved batch. Existing valid approval carries across sessions. A request to execute only one task remains binding.
 
+## New user example
+
+For a shopping WeChat Mini Program with WeChat Pay, open Codex or a compatible agent in your target project directory and send:
+
+```text
+Install the delivery Skill from https://github.com/AIVORA988/delivery
+into the current project and initialize it.
+
+Use $delivery to build a shopping WeChat Mini Program with product browsing,
+a cart, checkout with WeChat Pay, and order lookup. First present the requirements,
+design, task breakdown and acceptance methods. Wait for my approval before implementation.
+```
+
+After reviewing and approving the plan, send:
+
+```text
+$delivery I approve this plan and task scope. Start implementation, verify the result,
+perform overall acceptance and update the usage instructions. Keep any live-payment
+checks pending when their prerequisites are unavailable.
+```
+
 ## Run a local demonstration
 
 ```bash
