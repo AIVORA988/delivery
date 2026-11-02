@@ -10,7 +10,13 @@ delivery connects requirements and design, human approval, task execution, verif
 
 Users set goals, approve plans and accept deliverables. Agents investigate, design and implement. Skills define behavioral rules; the Python Guard validates records, file versions and authorization scope.
 
-[Quick start](#quick-start) · [Two development paths](#two-development-paths) · [Knowledge reuse](#knowledge-capture-and-reuse) · [Documentation and validation](#documentation-and-validation)
+[Seven stages](#seven-stage-workflow) · [Quick start](#quick-start) · [Two development paths](#two-development-paths) · [Knowledge reuse](#knowledge-capture-and-reuse) · [Documentation and validation](#documentation-and-validation)
+
+## Seven-stage workflow
+
+[![Mission: requirements; Explore: investigation; Contract: design finalization; Graph: task planning; Loop: execution and verification; Acceptance: overall acceptance and delivery; Knowledge: documentation and reuse](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
+
+**The independent Approval Gate sits between Graph and Loop.** Execution stays within approved scope. Completing tasks does not replace overall acceptance; knowledge is updated throughout implementation.
 
 ## Quick start
 
@@ -57,7 +63,7 @@ Request revisions when needed, then review the updated plan. Once approval permi
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Confirm one or more approved Features; complete their tasks and module acceptance in order |
 | [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | Build existing-project knowledge on explicit request; no application edits or prerequisite development stage |
 
-Both paths share seven stages: **Mission → Explore → Contract → Graph → Loop → Acceptance → Knowledge**. These cover requirements, investigation, design finalization, task planning, execution and verification, overall acceptance and delivery, and documentation and knowledge capture. The sole **Approval Gate sits between Graph and Loop**. Material plan, task or bound design / API contract changes return to that gate for review.
+Both paths share the seven stages above and the same plan and record. Material plan, task or bound design / API contract changes return to the original Approval Gate for review.
 
 Detailed diagrams (Chinese): [Architecture](docs/architecture.png) · [Approval](docs/diagrams/01-approval-gate.png) · [Execution and repair](docs/diagrams/02-execution-loop.png) · [Acceptance and evidence](docs/diagrams/03-acceptance-evidence.png) · [Design and Harness boundaries](docs/design.md)
 

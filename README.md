@@ -16,7 +16,13 @@
 
 用户确定目标、审批方案并接收成果；Agent 负责调查、设计和实施；Skill 定义行为规范，Python Guard 校验记录、文件版本与授权范围。
 
-[快速开始](#快速开始) · [日常研发双路径](#日常研发双路径) · [知识复用](#知识沉淀与复用) · [文档与验证](#文档与验证)
+[七阶段工作流](#七阶段工作流) · [快速开始](#快速开始) · [日常研发双路径](#日常研发双路径) · [知识复用](#知识沉淀与复用) · [文档与验证](#文档与验证)
+
+## 七阶段工作流
+
+[![七阶段：Mission 需求理解、Explore 现状调查、Contract 方案定版、Graph 任务规划、Loop 执行与验证闭环、Acceptance 整体验收与交付、Knowledge 文档与知识沉淀](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
+
+**人工审批是独立关口，位于 Graph 与 Loop 之间。** 批准后在授权范围内执行；任务完成后仍须整体验收，知识随实施持续更新。
 
 ## 快速开始
 
@@ -63,7 +69,7 @@ Agent 先提交方案、任务依赖、验收标准、操作范围和有限执�
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | 确认本轮一个或多个已批准 Feature，逐模块执行子任务与模块验收 |
 | [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | 用户明确要求时集中构建存量知识；不修改业务代码，不是研发前置步骤 |
 
-两条路径共用七阶段：**Mission（需求理解）→ Explore（现状调查）→ Contract（方案定版）→ Graph（任务规划）→ Loop（执行与验证闭环）→ Acceptance（整体验收与交付）→ Knowledge（文档与知识沉淀）**。唯一人工审批关口位于 **Graph → Loop**；方案、任务或稳定设计 / 接口契约实质变化时回到原关口复核。
+两条路径共用上述七阶段及同一方案与记录。方案、任务或稳定设计 / 接口契约实质变化时，回到原人工审批关口复核。
 
 完整架构与细节：[架构主图](docs/architecture.png) · [审批授权](docs/diagrams/01-approval-gate.png) · [执行修复](docs/diagrams/02-execution-loop.png) · [验收证据](docs/diagrams/03-acceptance-evidence.png) · [设计原则与 Harness 边界](docs/design.md)
 

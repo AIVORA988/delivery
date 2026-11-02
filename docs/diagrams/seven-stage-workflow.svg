@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="390" viewBox="0 0 1600 390" role="img" aria-labelledby="title desc">
+  <title id="title">delivery · 研发交付七阶段 / Seven-stage delivery workflow</title>
+  <desc id="desc">Mission: requirements; Explore: investigation; Contract: design finalization; Graph: task planning; Loop: execution, verification, repair and reverification; Acceptance: overall acceptance and delivery; Knowledge: documentation and reuse. A separate human Approval Gate sits between Graph and Loop; it is not an eighth stage. Knowledge is maintained throughout implementation.</desc>
+  <defs>
+    <linearGradient id="header"><stop stop-color="#0b1f35"/><stop offset="1" stop-color="#145969"/></linearGradient>
+    <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f3f8ff"/><stop offset="1" stop-color="#e8f4f7"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#b8d5ee" stroke-opacity=".2"/></pattern>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#4985be" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif; text-anchor: middle; fill: #153d5c; }
+      .card { fill: #fff; stroke: #b2d7ee; stroke-width: 1.5; }
+      .number { font-size: 17px; font-weight: 700; fill: #0c8791; }
+      .name { font-size: 24px; font-weight: 700; }
+      .label { font-size: 20px; font-weight: 600; }
+      .detail { font-size: 17px; fill: #61829f; }
+      .edge { fill: none; stroke: #4985be; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1600" height="390" rx="18" fill="url(#paper)"/>
+  <rect width="1600" height="390" rx="18" fill="url(#grid)"/>
+  <path d="M18 0H1582Q1600 0 1600 18V105H0V18Q0 0 18 0Z" fill="url(#header)"/>
+  <rect x="32" y="26" width="7" height="53" rx="3.5" fill="#42d4c8"/>
+  <text x="58" y="55" style="text-anchor:start;font-size:32px;font-weight:700;fill:#f1f8ff">研发交付七阶段</text>
+  <text x="58" y="83" style="text-anchor:start;font-size:19px;fill:#b8d2e1">需求与方案前置 · 人工审批授权 · 受控执行 · 基于证据验收</text>
+  <text x="1548" y="62" style="text-anchor:end;font-size:22px;font-weight:700;fill:#7ff0df">delivery / V1.0</text>
+
+  <path class="edge" d="M212 230H234"/>
+  <path class="edge" d="M420 230H442"/>
+  <path class="edge" d="M628 230H650"/>
+  <path class="edge" d="M836 230H847"/>
+  <path class="edge" d="M938 230H947"/>
+  <path class="edge" d="M1132 230H1154"/>
+  <path class="edge" d="M1340 230H1362"/>
+
+  <rect class="card" x="32" y="134" width="180" height="187" rx="16"/>
+  <circle cx="122" cy="162" r="18" fill="#dff8f5"/><text x="122" y="168" class="number">01</text>
+  <text x="122" y="209" class="name">Mission</text>
+  <text x="122" y="244" class="label">需求理解</text>
+  <text x="122" y="282" class="detail">目标 · 范围 · 不变量</text>
+
+  <rect class="card" x="240" y="134" width="180" height="187" rx="16"/>
+  <circle cx="330" cy="162" r="18" fill="#dff8f5"/><text x="330" y="168" class="number">02</text>
+  <text x="330" y="209" class="name">Explore</text>
+  <text x="330" y="244" class="label">现状调查</text>
+  <text x="330" y="282" class="detail">源码 · 依赖 · 复用</text>
+
+  <rect class="card" x="448" y="134" width="180" height="187" rx="16"/>
+  <circle cx="538" cy="162" r="18" fill="#dff8f5"/><text x="538" y="168" class="number">03</text>
+  <text x="538" y="209" class="name">Contract</text>
+  <text x="538" y="244" class="label">方案定版</text>
+  <text x="538" y="282" class="detail">设计 · 验收 · 边界</text>
+
+  <rect class="card" x="656" y="134" width="180" height="187" rx="16"/>
+  <circle cx="746" cy="162" r="18" fill="#dff8f5"/><text x="746" y="168" class="number">04</text>
+  <text x="746" y="209" class="name">Graph</text>
+  <text x="746" y="244" class="label">任务规划</text>
+  <text x="746" y="282" class="detail">拆分 · 依赖 · 检查</text>
+
+  <rect x="850" y="155" width="88" height="145" rx="15" fill="#fff5dd" stroke="#e9ba59" stroke-width="1.5"/>
+  <path d="m882 180 9 9 16-18" fill="none" stroke="#a46d0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="894" y="218" style="font-size:18px;font-weight:700;fill:#875c15">人工审批</text>
+  <text x="894" y="245" style="font-size:13px;fill:#875c15">Approval Gate</text>
+  <text x="894" y="277" style="font-size:14px;fill:#875c15">批准后执行</text>
+
+  <rect x="952" y="134" width="180" height="187" rx="16" fill="#f3f0ff" stroke="#bcacff" stroke-width="1.5"/>
+  <circle cx="1042" cy="162" r="18" fill="#e7dfff"/><text x="1042" y="168" class="number" style="fill:#6855c3">05</text>
+  <text x="1042" y="209" class="name" style="fill:#6855c3">Loop</text>
+  <text x="1042" y="244" class="label">执行与验证闭环</text>
+  <text x="1042" y="278" class="detail">实施 · 验证</text>
+  <text x="1042" y="303" class="detail">必要修复 · 重验</text>
+
+  <rect class="card" x="1160" y="134" width="180" height="187" rx="16"/>
+  <circle cx="1250" cy="162" r="18" fill="#dff8f5"/><text x="1250" y="168" class="number">06</text>
+  <text x="1250" y="209" class="name">Acceptance</text>
+  <text x="1250" y="244" class="label">整体验收与交付</text>
+  <text x="1250" y="282" class="detail">集成 · 回归 · 接收</text>
+
+  <rect class="card" x="1368" y="134" width="180" height="187" rx="16"/>
+  <circle cx="1458" cy="162" r="18" fill="#dff8f5"/><text x="1458" y="168" class="number">07</text>
+  <text x="1458" y="209" class="name">Knowledge</text>
+  <text x="1458" y="244" class="label">文档与知识沉淀</text>
+  <text x="1458" y="282" class="detail">文档 · 索引 · 复用</text>
+
+  <text x="800" y="363" style="font-size:18px;fill:#527b98">任务 / 模块完成 ≠ 整体交付 · 中断恢复保留审批与累计用量 · 知识随实施持续更新</text>
+</svg>
