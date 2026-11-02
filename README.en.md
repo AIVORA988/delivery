@@ -47,9 +47,9 @@ Send this after reviewing and approving the plan:
 I approve the current plan and task list. Execute within the agreed scope and limits.
 ```
 
-Request revisions if the plan is not approved. Once approval permits implementation, the agent uses the corresponding execution Skill. Approval without permission to start is retained without executing. Ordinary plans run a Task Loop; Feature plans first let the developer select one or more approved Features. Selected Features run sequentially in dependency order, with a Task Loop inside each for implementation, verification, repair and reverification. Tasks do not need repeated approval.
+Request revisions when needed, then review the updated plan. Once approval permits implementation, the agent uses the corresponding execution Skill. Approval without permission to start is retained without executing. Ordinary plans run a Task Loop; Feature plans first let the developer select one or more approved Features, then advance in dependency order with a Task Loop inside each. Tasks do not need repeated approval.
 
-Use `$delivery-run` or `$delivery-feature-run` to resume later. Selection narrows existing authorization; it is not a new approval. Unapproved work, stale baselines and unmet prerequisites cannot start. Feature completion requires task checks and module acceptance; final system acceptance remains separate. See [START.md](START.md) for installation and upgrades and [Usage](docs/usage.md) for a complete interaction (Chinese).
+Use `$delivery-run` or `$delivery-feature-run` to resume with the same plan, record and valid authorization. See [START.md](START.md) for installation and upgrades and [Usage](docs/usage.md) for a complete interaction (Chinese).
 
 ## Skill responsibilities
 
@@ -59,7 +59,7 @@ Use `$delivery-run` or `$delivery-feature-run` to resume later. Selection narrow
 | [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from architecture and detailed design, defining Features, tasks, contracts and dependencies |
 | [`$delivery-run`](skills/delivery-run/SKILL.md) | Execute or resume an approved ordinary plan through the shared Task Loop |
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Select one or more Features, advance Features in order and run the Task Loop within each |
-| `$delivery-bootstrap` | Explicit, scoped knowledge construction for an existing project, with source references and resumable coverage |
+| [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | Explicit, scoped knowledge construction for an existing project, with source references and resumable coverage |
 
 When an existing project needs a dedicated knowledge pass:
 
@@ -76,19 +76,11 @@ After overall approval, `$delivery-feature-run` shows each Feature's name, task 
 
 Unfinished prerequisites must be included explicitly or already have passed module acceptance. Missing prerequisites prompt a selection change rather than an automatic scope expansion. Complete the current Feature's tasks and module acceptance before moving to the next. Save actual progress, evidence, cumulative usage and continuation points, update relevant knowledge, and resume without rerunning still-valid DONE tasks.
 
-```mermaid
-flowchart TD
-    A[Select one or more approved Features] --> B[Advance the current Feature in dependency order]
-    B --> C[Task Loop: implement, verify, repair and reverify]
-    C --> D[All current Feature tasks and module checks pass]
-    D -->|More selected Features| B
-    D -->|Selection complete| E[Handoff, progress and knowledge update]
-    E -->|All current-scope Features complete| F[Overall system acceptance and delivery]
-```
+[![Feature selection, Task Loop and overall acceptance](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
 
 Task limits count the whole Graph or each Feature, including completed tasks, rather than the current approval batch. Payment, authorization, migrations, public contract changes and shared rules retain appropriate design and validation depth regardless of patch size. Planning-only, deferred execution and module-specific instructions remain binding.
 
-`record.contracts` binds stable design and API files to the baseline. Changes invalidate approval and evidence. Guard's `--task` checks a specific task; Feature execution also requires `--features F01 F02`. `selection_complete` describes selected Features, `batch_complete` the current approved task batch, and `delivery_ready` the overall delivery conditions. These are record checks, not runtime interception.
+Selection only narrows existing authorization. Unapproved work, stale baselines and unmet prerequisites cannot start. Selected-scope completion, approval-batch completion and overall delivery are separate decisions. Changes to bound design or API files require review of approval and evidence; old PASS results do not automatically carry over. See the [record contract](skills/delivery/references/record.md) for internal commands and result fields (Chinese).
 
 ## Workflow and example
 
@@ -140,7 +132,7 @@ Click a diagram to view the full-resolution original (Chinese). See [Usage](docs
 - **Separate task and overall acceptance**: task completion does not replace overall acceptance, a recorded receipt or required handoff materials.
 - **Current delivery scope and follow-up validation**: explicitly approved follow-ups remain separate, while documentation and knowledge are updated as work progresses.
 
-The read-only Guard is a deterministic validator of record consistency and referenced files. It does not execute project commands, authenticate reviewers, establish report authenticity, or enforce an operating-system sandbox. Agents and the agreed recipients remain responsible for execution, impact analysis and business acceptance under project rules. Installation success means CONFIGURED, not application correctness.
+The read-only Guard is a deterministic validator of record consistency and referenced files. It does not execute or intercept project commands, measure elapsed time, authenticate reviewers, establish report authenticity, or enforce an operating-system sandbox. Agents and the agreed recipients remain responsible for actual operation authorization, changed-file scope, impact analysis and business acceptance under project rules. Installation success means CONFIGURED, not application correctness.
 
 ## Acceptance scope and evidence validity
 
@@ -150,7 +142,7 @@ When all required task checks, overall acceptance, handoff materials and the agr
 
 ## Project integration and implementation boundaries
 
-The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing rules and local changes are preserved. Historical records retain their original baseline and approval without mandatory migration. Records without scenario keep legacy validation semantics; new runs must declare a scenario. Small changes still need a concise plan and approval. Read-only investigation does not authorize implementation.
+The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing rules and local changes are preserved. Historical records retain their original hashes, approvals and counting rules without mandatory migration; validation fixes also apply to old records. New runs must declare a scenario. Small changes still need a concise plan and approval. Read-only investigation does not authorize implementation.
 
 ## Knowledge capture and reuse
 

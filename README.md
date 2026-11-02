@@ -56,9 +56,9 @@ Agent 调查现状，形成适当深度的方案、任务依赖与验收标准�
 批准当前方案和任务清单，按约定范围执行。
 ```
 
-审批不通过则修改方案并重交。批准且授权开始后，Agent 使用对应执行 Skill；只批准但暂不实施时可直接说明。普通需求连续执行 Task Loop；Feature 项目先让开发者选择本轮一个或多个已批准 Feature，默认按依赖顺序串行，每个 Feature 内执行多个子任务的实施、验证、修复和重验，不逐任务重复审批。
+需调整时修改方案并重新提交。批准且授权开始后，Agent 使用对应执行入口；只批准而暂不实施时可直接说明。普通需求执行 Task Loop，Feature 项目先选择本轮一个或多个已批准 Feature，再按依赖逐模块执行内部子任务，不逐任务重复审批。
 
-后续恢复可显式调用 `$delivery-run` 或 `$delivery-feature-run`。选择只缩小原授权，不构成新审批；未获批、基线过期或必要依赖缺失时不能执行。当前 Feature 全部子任务及模块验收通过后才推进依赖它的 Feature，全部本期 Feature 完成后仍需系统整体验收。完整交互见 [使用手册](docs/usage.md)，手工安装和升级见 [START.md](START.md)。
+后续恢复使用 `$delivery-run` 或 `$delivery-feature-run`，沿用原方案、记录和有效授权。完整交互见 [使用手册](docs/usage.md)，安装和升级见 [START.md](START.md)。
 
 ## Skill 职责
 
@@ -68,7 +68,7 @@ Agent 调查现状，形成适当深度的方案、任务依赖与验收标准�
 | [`$delivery-feature`](skills/delivery-feature/SKILL.md) | 基于架构与详细设计规划全新中大型项目，明确 Feature、任务、契约与依赖，提交整体审批 |
 | [`$delivery-run`](skills/delivery-run/SKILL.md) | 执行或恢复已批准的普通方案，运行 Task Loop，验收与知识更新 |
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | 选择单个或多个 Feature，外层按 Feature 推进，内层执行各自的 Task Loop |
-| `$delivery-bootstrap` | 显式触发的存量知识构建：按项目或模块调查源码与已有资料，补齐知识和恢复入口 |
+| [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | 显式触发的存量知识构建：按项目或模块调查源码与已有资料，补齐知识和恢复入口 |
 
 存量项目需要集中梳理知识时，可发送：
 
@@ -84,19 +84,11 @@ $delivery-bootstrap 梳理当前项目的订单与支付模块，保留已有文
 
 所选范围的未完成前置须同时选中，或已完成模块验收；遗漏时提示补选或调整，不擅自追加。先完成当前 Feature 的 Task Loop 和模块验收，再推进下一个。本轮结束保存进度、证据、累计用量与恢复入口，并更新相关知识；下次核实实际状态后跳过仍有效的 DONE。
 
-```mermaid
-flowchart TD
-    A[选择一个或多个已批准 Feature] --> B[按依赖推进当前 Feature]
-    B --> C[子任务 Loop：实施、验证、修复与重验]
-    C --> D[当前 Feature 全部任务及模块验收通过]
-    D -->|所选范围还有 Feature| B
-    D -->|所选范围完成| E[批次交接、保存进度与知识更新]
-    E -->|全部本期 Feature 完成| F[系统整体验收与交付]
-```
+[![Feature 选择、子任务 Loop 与整体验收](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
 
 任务上限按整个 Graph 或单个 Feature 计数，包含已完成任务，不按审批批次重算。支付、权限、迁移、公开契约或跨模块规则变化不因代码量小而简化。用户限制“只给方案”“暂不执行”或“只执行本模块”始终有效。
 
-外部稳定设计 / 接口文件登记到 record.contracts，实际内容变化会使审批及旧证据过期。Guard 的 `--task` 校验具体任务；Feature 计划还需 `--features F01 F02` 限定本轮范围。`selection_complete`、`batch_complete` 与 `delivery_ready` 分别表示所选 Feature 完成、当前批准任务批次完成和本期整体验收条件满足，不能互换。这些能力校验记录，不实时拦截 Agent 操作。
+选择只缩小已有授权；未审批、基线过期或必要依赖缺失时不能执行。所选范围完成、批准批次完成与系统交付分别判定，不能互换。稳定设计 / 接口文件内容改变后需复核审批与证据，不能直接沿用旧 PASS。内部命令和状态字段见 [记录契约](skills/delivery/references/record.md)。
 
 ## 运行机制与示例
 
@@ -158,7 +150,7 @@ python examples/try_delivery.py
 - **任务完成与整体验收独立判定**：全部任务 DONE 后，仍须检查整体需求、集成结果、接收记录和必要交接材料。
 - **本期验收与后续验证专项分别管理**：已批准的后续真实环境专项独立记录；文档与知识依据设计、实现和已执行检查持续更新。
 
-Guard 只校验记录和所引用文件，不运行项目测试、不认证审批身份，也不证明报告真实性。实际执行、影响分析与业务验收仍由 Agent 和约定接收方按项目规则完成。
+Guard 只校验记录和所引用文件，不运行项目测试、自动计时、实时拦截命令或认证审批身份，也不证明报告真实性。实际操作授权、修改范围、影响分析与业务验收仍由 Agent 和约定接收方按项目规则核对。
 
 ## 分层验收与证据有效性
 
@@ -193,7 +185,7 @@ your-project/
     └── deliveries/                   有长期参考价值的交付摘要
 ```
 
-新需求使用 `plan.md` 和 `record.json`，简单任务裁剪方案而不省略审批；只读排查不授权业务修改。历史记录保留原基线与审批，不强制迁移；无 scenario 的旧记录沿用原校验语义，新建记录必须声明场景，不能删字段逃避上限。内部记录由 Agent 维护，使用者无需填写 JSON、内部编号或摘要。
+新需求使用 `plan.md` 和 `record.json`，简单任务裁剪方案而不省略审批；只读排查不授权业务修改。历史记录保留原摘要、审批与计数规则，不强制迁移；统一缺陷校验也适用于旧记录。新建记录必须声明场景，不能删字段逃避上限。内部记录由 Agent 维护，使用者无需填写 JSON、内部编号或摘要。
 
 ## 知识沉淀与复用
 

@@ -4,11 +4,27 @@ import re
 import subprocess
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackageTests(unittest.TestCase):
+    def test_readme_flow_diagram_is_static_and_self_contained(self):
+        diagram = "docs/diagrams/feature-task-loop.svg"
+        for name in ("README.md", "README.en.md"):
+            text = (ROOT / name).read_text(encoding="utf-8")
+            self.assertIn(diagram, text)
+            self.assertNotIn("```mermaid", text)
+        svg = ET.parse(ROOT / diagram).getroot()
+        self.assertEqual(svg.tag, "{http://www.w3.org/2000/svg}svg")
+        self.assertIn("viewBox", svg.attrib)
+        for element in svg.iter():
+            self.assertNotIn(element.tag.rsplit("}", 1)[-1], {"script", "foreignObject", "image"})
+            for key, value in element.attrib.items():
+                if key.endswith("href"):
+                    self.assertTrue(value.startswith("#"))
+
     def test_local_document_and_image_links_resolve(self):
         for path in ROOT.rglob("*.md"):
             if ".git" in path.parts:

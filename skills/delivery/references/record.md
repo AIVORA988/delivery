@@ -46,7 +46,7 @@ Feature 场景每项 task 必须有唯一 feature 字段，指向定义的 Featu
 }
 ```
 
-这是字段片段，须配合真实任务和完整 run 使用。scenario、Feature 定义、任务归属和模块验收均纳入 Graph 摘要，进度仍不改变基线。无 scenario 的旧记录保持原摘要、数量与执行校验语义，不强制迁移；新记录始终声明场景，不得删字段规避限制。若主动转换旧运行，须按实质基线变更复核批准和证据，不能偷偷重写历史。
+这是字段片段，须配合真实任务和完整 run 使用。scenario、Feature 定义、任务归属和模块验收均纳入 Graph 摘要，进度仍不改变基线。无 scenario 的旧记录保持原摘要与数量规则，不强制迁移；统一缺陷校验也适用于旧记录，不保留越限或不一致记录的错误放行。新记录始终声明场景，不得删字段规避限制。若主动转换旧运行，须按实质基线变更复核批准和证据，不能偷偷重写历史。
 
 ### 外部设计与接口契约
 
@@ -59,6 +59,8 @@ Feature 场景每项 task 必须有唯一 feature 字段，指向定义的 Featu
 `state`：PENDING、READY、RUNNING、VERIFYING、REPAIRING、DONE、BLOCKED、NEED_DECISION、STOPPED。依赖必须存在且无环；READY / 活动 / DONE 不能越过未完成依赖。BLOCKED / NEED_DECISION / STOPPED 需要 note 和 handoff.resume。
 
 `checks` 的 kind 为 REQUIRED / CONDITIONAL / OPTIONAL。条件项 trigger 为 TRIGGERED / NOT_TRIGGERED / UNKNOWN；不触发需要 reason，UNKNOWN 不能完成。每项任务和整体验收至少有一个适用必需项；不能靠空数组声称完成。OPTIONAL 可约定 `failure_blocks: true`，纳入批准定义。
+
+仅有 NOT_TRIGGERED / UNKNOWN 条件项而没有适用必需项时，不授权开始执行；有其他适用必需项的 UNKNOWN 仍阻止最终完成。trigger / reason 同属 Graph 定义，改变适用性须复核原审批，不能只刷新摘要绕过确认。定义数组顺序参与原摘要；调整独立任务的实际执行顺序无需重排数组。外部 contracts 数组仍按路径排序，保留原行为。
 
 任务示例：
 
@@ -78,11 +80,13 @@ decision 为 PENDING / APPROVED / CHANGES_REQUESTED / REJECTED。只有真实批
 
 切换批次覆盖 `approval` 前，将原有实际 APPROVED 记录完整保留到 `approval_history`；保留原审批人、时间、可追溯的真实确认来源、摘要、任务、路径、操作与限制，不改写为当前批次。Guard 只读校验，不自动保存或补造审批，也不会从 DONE、PASS 或上次总结推断历史授权。历史记录缺失时恢复可核验的原批准记录，或请有权限的审批人重新确认；不得由 Agent 自行补批。
 
-DONE 必须由有效的当前审批或历史快照覆盖。历史快照须与当前 plan / Graph 摘要一致，具有完整来源、任务范围、路径、允许操作及有效有限规则；累计修复不得超过该快照上限。旧基线快照仅保留历史，不证明当前授权。历史快照不授权 RUNNING / VERIFYING / REPAIRING 或下一任务；这些仍以当前 `approval` 为准。添加历史快照不改变 Graph 摘要，方案或 Graph 实质变更仍需复核批准与证据。
+DONE 必须由有效的当前审批或历史快照覆盖。历史快照须与当前 plan / Graph 摘要一致，具有完整来源、任务范围、路径、允许操作及有效有限规则；该任务累计修复和时间均不得超过对应快照上限。当前批次收紧限制不追溯否定原审批内合法完成的 DONE；重新进入活动状态仍按当前审批和累计用量校验。旧基线快照仅保留历史，不证明当前授权。历史快照不授权 RUNNING / VERIFYING / REPAIRING 或下一任务；这些仍以当前 `approval` 为准。添加历史快照不改变 Graph 摘要，方案或 Graph 实质变更仍需复核批准与证据。
 
 审批来源的真实性仍须由执行方按实际授权核实；记录中的姓名、时间与 source 字段不构成身份认证或防伪证明。
 
 `limits.max_repairs` 为非负整数或 null，`max_minutes` 为正整数或 null；连续执行至少应有一个已确认的有限限制。null 是待配置，不等于无限。累计 repairs / used_minutes 不随恢复清零；次数约束下一次修复启动，最后一轮允许完成重验。Guard 只核对记录，Agent / 宿主负责实际计数和停止。
+
+限额由每个任务继承，非批次总预算；used_minutes 是该任务累计实际执行分钟，不是自动采集的墙钟时间。进入 REPAIRING 前先增加 repairs，0 次不能处于 REPAIRING；达到最大次数的已登记一轮可在剩余时间内重验，下一轮不得启动。used_minutes 达到上限时不再放行执行；若检查已在限额内完成，恰好到限的 DONE 可验收，超过上限的 DONE 不能凭 PASS 交付。operations 校验记录形状和非空范围，不自动将自然语言操作映射到命令权限；每次实际操作仍由 Agent / 宿主核对。
 
 ### 证据与版本
 
@@ -91,6 +95,8 @@ DONE 必须由有效的当前审批或历史快照覆盖。历史快照须与当
 subjects 绑定本次检查的源码、配置或产物；报告记录实际命令 / 操作、输入、预期、输出、环境与限制。远端运行还需在报告中记录被测实例 / 构建身份，不能用本地文件摘要代替实际部署身份核对。
 
 同一基线、同一检查以追加顺序的最新证据作为当前结果；旧失败和旧版本证据保留。原始报告按尝试另存，避免重验覆盖旧报告。当前对象或报告摘要不符时按 NOT_VERIFIED 处理。方法不同于批准定义时需要复核，不能把本地或 Mock 结果冒充指定真实检查。
+
+约定 failure_blocks 的检查一旦在当前基线失败，源码 / 报告变化或追加 NOT_RUN / NOT_VERIFIED 不解除阻塞；须追加当前对象与报告均有效的 PASS。普通 OPTIONAL 未执行仍不自动阻塞。此规则不改变检查定义或原 Graph 摘要。
 
 摘要只能发现所引用文件发生变化，无法证明记录未被伪造或覆盖所有相关行为。变更影响分析仍须核对调用方、数据、外部依赖和回归范围。
 

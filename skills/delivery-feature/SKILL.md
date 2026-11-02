@@ -11,7 +11,7 @@ metadata:
 
 读取项目规则、用户提供的架构与详细设计、原计划和工作区。按 [setup.md](../delivery/references/setup.md) 接入，按 [knowledge.md](../delivery/references/knowledge.md) 判断空库或按需复用。缺少必要设计时列出缺口，停在规划；不自行把猜测或未确认架构当成批准输入。附件先落实为项目内可追溯的稳定设计文件，保留来源，不默默改变用户设计。
 
-按共享 [planning.md](../delivery/references/planning.md) 复核业务、架构、接口、数据、异常、并发、一致性、兼容、回退与验收。新建记录使用配套 `scripts/delivery.py new --project <项目> --id <需求ID> --title <标题> --scenario feature`。引用的架构与详细设计实际文件必须登记到 contracts，纳入审批摘要；记录结构见 [record.md](../delivery/references/record.md)。
+按共享 [planning.md](../delivery/references/planning.md) 复核业务、架构、接口、数据、异常、并发、一致性、兼容、回退与验收。新建记录使用 [共享脚本](../delivery/scripts/delivery.py) 的 `new --project <项目> --id <需求ID> --title <标题> --scenario feature`。引用的架构与详细设计实际文件必须登记到 contracts，纳入审批摘要；记录结构见 [record.md](../delivery/references/record.md)。
 
 先固定本期完整 Feature 和任务定义，再分批实施；超过边界重新拆分合理需求或 Feature，不隐藏独立任务。每个 Feature 有稳定 ID、业务目标、接口提供方 / 消费方、必要依赖和模块验收 checks；每项任务唯一归属一个 Feature，每个 Feature 1-30 项任务，DONE 也计数。任务跨 Feature 依赖必须与 Feature 依赖一致，两层依赖均无环。保留整体业务链路与最终集成验收；Feature 不是按文件夹机械切分。
 

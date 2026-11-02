@@ -463,6 +463,8 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
         for key in ("repairs", "used_minutes"):
             if not count(task.get(key)):
                 error("USAGE", tid, f"{key} must be a nonnegative integer")
+        if task.get("state") == "REPAIRING" and task.get("repairs") == 0:
+            error("REPAIR_STATE", tid, "Register the repair attempt before entering REPAIRING")
         add_checks(task.get("checks"), tid)
     add_checks(overall.get("checks"), "overall")
     seen, visiting = set(), set()
@@ -535,12 +537,12 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                 or any(fid not in features for fid in feature_ids)):
             raise ValueError("Select unique existing Feature IDs from a feature plan")
     baseline = {"plan_sha256": digest(plan.read_bytes()), "graph_sha256": graph_digest(record, root)}
-    acceptance_defined = bool(tasks) and all(any(
-        c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in t["checks"]) for t in tasks.values())
-    acceptance_defined = acceptance_defined and any(
-        c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in overall["checks"])
-    acceptance_defined = acceptance_defined and all(any(
-        c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in f["checks"]) for f in features.values())
+    def required_checks(items: list) -> list:
+        return [c for c in items if c["kind"] == "REQUIRED" or (
+            c["kind"] == "CONDITIONAL" and c.get("trigger") == "TRIGGERED")]
+
+    acceptance_defined = bool(tasks) and all(required_checks(owner["checks"])
+        for owner in [*tasks.values(), overall, *features.values()])
     design_ready = scenario != "feature" or bool(contracts)
     if not design_ready:
         waiting.append("Bind the architecture and detailed design files in contracts before execution")
@@ -586,8 +588,13 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
         if any(not covered(p, boundaries) for p in tasks[tid]["paths"]):
             error("APPROVAL_SCOPE", tid, "Task paths exceed approved boundaries")
 
+    def within_limits(task: dict, max_repairs: object, max_minutes: object) -> bool:
+        return ((not count(max_repairs) or task["repairs"] <= max_repairs)
+                and (not count(max_minutes) or task["used_minutes"] <= max_minutes))
+
     # Retained batches can justify DONE, never authorize new activity.
-    done_authorized = set(authorized) if valid_approval and policy_ready and not issues else set()
+    done_authorized = ({tid for tid in authorized if within_limits(tasks[tid], repairs, minutes)}
+                       if valid_approval and policy_ready and not issues else set())
     history = record.get("approval_history", [])
     if not isinstance(history, list):
         error("APPROVAL_HISTORY", "approval_history", "Expected retained approval snapshots")
@@ -626,9 +633,10 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             error("APPROVAL_HISTORY", field, "Task paths exceed retained approval boundaries")
             continue
         done_authorized.update(tid for tid in prior_tasks
-                               if not count(prior_repairs) or tasks[tid]["repairs"] <= prior_repairs)
+                               if within_limits(tasks[tid], prior_repairs, prior_minutes))
 
     evidence, verdicts = {}, {}
+    blocking_failures = set()
     # Old baselines and superseded attempts remain history, not current verdicts.
     latest = {e.get("check"): e.get("id") for e in record["evidence"]
               if isinstance(e, dict) and e.get("baseline") == baseline}
@@ -658,6 +666,8 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             continue
         if e.get("method") != checks[cid]["method"]:
             error("METHOD_CHANGED", eid, "Evidence method differs from the approved check")
+        if e.get("result") == "FAIL" and checks[cid].get("failure_blocks"):
+            blocking_failures.add(cid)
         if latest.get(cid) != eid:
             continue
         fresh = True
@@ -678,12 +688,13 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                         fresh = False
                         waiting.append(f"{eid}: subject/report missing or changed")
         verdicts[cid] = e.get("result") if fresh else "NOT_VERIFIED"
+        if verdicts[cid] == "PASS":
+            blocking_failures.discard(cid)
 
     def checks_pass(items: list) -> bool:
-        required = [c for c in items if c["kind"] == "REQUIRED" or (
-            c["kind"] == "CONDITIONAL" and c.get("trigger") == "TRIGGERED")]
+        required = required_checks(items)
         unresolved = any(c["kind"] == "CONDITIONAL" and c.get("trigger") == "UNKNOWN" for c in items)
-        optional_fail = any(c.get("failure_blocks") and verdicts.get(c["id"]) == "FAIL" for c in items)
+        optional_fail = any(c["id"] in blocking_failures for c in items)
         return bool(required) and not unresolved and not optional_fail and all(
             verdicts.get(c["id"]) == "PASS" for c in required)
 
@@ -699,7 +710,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
         if scenario == "feature":
             deps_done = deps_done and all(feature_complete[d] for d in features[task["feature"]]["depends_on"])
         if task["state"] == "DONE" and tid not in done_authorized:
-            error("DONE_AUTHORIZATION", tid, "DONE requires current or retained execution approval for this baseline")
+            error("DONE_AUTHORIZATION", tid, "DONE requires current or retained approval covering this baseline, scope and recorded usage")
         if task["state"] == "DONE" and not checks_pass(task["checks"]):
             error("FALSE_DONE", tid, "Required current acceptance/evidence is incomplete")
         if task["state"] in ACTIVE and (not valid_approval or tid not in authorized or not deps_done):
@@ -708,9 +719,10 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             error("DEPENDENCY_STATE", tid, "Task state requires completed dependencies")
         over_repairs = count(repairs) and task["repairs"] > repairs
         out_of_time = count(minutes) and task["used_minutes"] >= minutes
-        if tid in authorized and over_repairs:
-            error("LIMIT_EXCEEDED", tid, "Recorded repairs exceed the approved maximum")
-        if tid in authorized and out_of_time:
+        if (tid in authorized and not within_limits(task, repairs, minutes)
+                and (task["state"] != "DONE" or tid not in done_authorized)):
+            error("LIMIT_EXCEEDED", tid, "Recorded repairs or time exceed the approved maximum")
+        if tid in authorized and out_of_time and task["state"] != "DONE":
             waiting.append(f"{tid}: effective time limit reached")
         if (tid in authorized and valid_approval and policy_ready and acceptance_defined and deps_done
                 and not over_repairs and not out_of_time

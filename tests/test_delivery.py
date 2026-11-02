@@ -638,6 +638,115 @@ class DeliveryTests(unittest.TestCase):
         self.save()
         self.assertFalse(d.guard(self.root, "sample")["execution_ready"])
 
+    def test_done_time_limit_accepts_exact_completion_but_rejects_overrun(self):
+        self.complete()
+        for used, allowed in ((59, True), (60, True), (61, False)):
+            with self.subTest(used=used):
+                self.record["tasks"][0]["used_minutes"] = used
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertEqual(result["delivery_ready"], allowed)
+                self.assertEqual(result["batch_complete"], allowed)
+                if not allowed:
+                    self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+
+    def test_historical_done_must_fit_its_original_time_limit(self):
+        self.complete_two_batches()
+        self.record["tasks"][0]["used_minutes"] = 61
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["delivery_ready"])
+        self.record["tasks"][0]["used_minutes"] = 60
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_current_limits_do_not_retroactively_reject_valid_historical_done(self):
+        self.start_two_tasks()
+        self.approve(["T01"])
+        self.record["tasks"][0].update({"repairs": 2, "used_minutes": 40})
+        self.finish_task("T01")
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.approve(["T01", "T02"])
+        self.record["approval"]["limits"] = {"max_repairs": 0, "max_minutes": 10}
+        self.record["tasks"][1]["state"] = "READY"
+        self.save()
+        result = d.guard(self.root, "sample", "T02")
+        self.assertEqual(result["issues"], [])
+        self.assertTrue(result["execution_ready"])
+        self.finish_task("T02")
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        self.record["tasks"][0]["state"] = "VERIFYING"
+        self.save()
+        self.assertFalse(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_repairing_requires_a_registered_attempt_and_preserves_last_reverify(self):
+        self.start()
+        self.approve()
+        self.record["tasks"][0]["state"] = "REPAIRING"
+        for maximum in (3, 0):
+            with self.subTest(maximum=maximum):
+                self.record["approval"]["limits"]["max_repairs"] = maximum
+                self.save()
+                result = d.guard(self.root, "sample", "T01")
+                self.assertIn("REPAIR_STATE", self.codes(result))
+                self.assertFalse(result["execution_ready"])
+        self.record["approval"]["limits"]["max_repairs"] = 3
+        for state, repairs, allowed in (("REPAIRING", 1, True), ("REPAIRING", 3, True),
+                                        ("VERIFYING", 3, True), ("REPAIRING", 4, False)):
+            with self.subTest(state=state, repairs=repairs):
+                self.record["tasks"][0].update({"state": state, "repairs": repairs})
+                self.save()
+                self.assertEqual(d.guard(self.root, "sample", "T01")["execution_ready"], allowed)
+
+    def test_only_nontriggered_checks_cannot_authorize_unfinishable_work(self):
+        self.start()
+        self.record["tasks"][0]["checks"][0].update({"kind": "CONDITIONAL",
+            "trigger": "NOT_TRIGGERED", "reason": "No applicable path in this scope"})
+        self.approve()
+        self.assertFalse(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.record["tasks"][0]["checks"].append(self.check_def("C3"))
+        self.approve()
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_blocking_optional_failure_needs_fresh_pass_not_stale_or_not_run(self):
+        self.start()
+        self.record["tasks"][0]["checks"].append({**self.check_def("O1"),
+            "kind": "OPTIONAL", "failure_blocks": True})
+        self.approve()
+        self.finish_task("T01")
+        self.accept()
+        self.evidence("O1", "FAIL")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        self.evidence("C1")
+        self.evidence("C2")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.evidence("O1", "NOT_RUN")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.evidence("O1")
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_nonblocking_optional_failure_preserves_optional_semantics(self):
+        self.start()
+        self.record["tasks"][0]["checks"].append({**self.check_def("O1"), "kind": "OPTIONAL"})
+        self.approve()
+        self.finish_task("T01")
+        self.accept()
+        self.evidence("O1", "FAIL")
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_unknown_condition_with_required_check_keeps_existing_execution_semantics(self):
+        self.start()
+        self.record["tasks"][0]["checks"].append({**self.check_def("C3"),
+            "kind": "CONDITIONAL", "trigger": "UNKNOWN"})
+        self.approve()
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.finish_task("T01")
+        self.accept()
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+
     def test_knowledge_draft_can_be_handed_off_without_live_environment(self):
         self.complete()
         self.record["handoff"]["knowledge"] = {"status": "DRAFT_READY", "refs": ["README.md"]}
@@ -1091,6 +1200,25 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual((self.record["tasks"][2]["repairs"], self.record["tasks"][2]["used_minutes"]), (1, 17))
         # A narrower invocation cannot abandon recorded active work in another Feature.
         self.assertIn("FEATURE_SELECTION", self.codes(d.guard(self.root, "sample", feature_ids=["F01"])))
+
+    def test_historical_feature_time_overrun_blocks_dependent_feature(self):
+        self.start_features()
+        self.approve(["T01", "T02"])
+        self.finish_first_feature()
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.record["tasks"][2]["state"] = "READY"
+        self.approve(["T03", "T04"])
+        self.record["tasks"][0]["used_minutes"] = 61
+        self.save()
+        result = d.guard(self.root, "sample", "T03", ["F02"])
+        self.assertIn("DONE_AUTHORIZATION", self.codes(result))
+        self.assertFalse(result["execution_ready"])
+        self.assertFalse(result["selection_ready"])
+        self.assertFalse(result["features"][0]["complete"])
+        self.assertFalse(result["delivery_ready"])
+        self.record["tasks"][0]["used_minutes"] = 60
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T03", ["F02"])["execution_ready"])
 
     def test_feature_definition_membership_and_design_changes_invalidate_approval(self):
         self.start_features()

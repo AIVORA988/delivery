@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 660" role="img" aria-labelledby="title desc">
+  <title id="title">Feature selection and Task Loop / Feature 选择与子任务闭环</title>
+  <desc id="desc">Select approved Features, advance in dependency order, run each Task Loop and module checks, then save progress. Overall delivery requires all current-scope Features and system acceptance.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#2563eb"/></marker>
+    <style>
+      text { font-family: "Segoe UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; fill: #163154; }
+      .node { fill: #f2f7ff; stroke: #b6cff0; stroke-width: 1.5; }
+      .main { font-size: 20px; font-weight: 600; text-anchor: middle; }
+      .sub { font-size: 15px; fill: #4b6584; text-anchor: middle; }
+      .edge { fill: none; stroke: #2563eb; stroke-width: 2; marker-end: url(#arrow); }
+      .label { font-size: 13px; fill: #345e96; }
+    </style>
+  </defs>
+  <rect width="1040" height="660" rx="16" fill="#fff"/>
+  <text x="140" y="36" font-size="24" font-weight="700">Feature → Task Loop</text>
+  <text x="140" y="60" font-size="15" fill="#4b6584">单次审批授权 · 按依赖执行 · 模块验收与系统验收分离</text>
+  <rect class="node" x="140" y="82" width="650" height="58" rx="10"/>
+  <text class="main" x="465" y="106">选择一个或多个已批准 Feature</text>
+  <text class="sub" x="465" y="129">Select one or more approved Features</text>
+  <path class="edge" d="M465 140 V170"/>
+  <rect class="node" x="140" y="174" width="650" height="58" rx="10"/>
+  <text class="main" x="465" y="198">按依赖推进当前 Feature</text>
+  <text class="sub" x="465" y="221">Advance the current Feature in dependency order</text>
+  <path class="edge" d="M465 232 V262"/>
+  <rect x="140" y="266" width="650" height="66" rx="10" fill="#eef0ff" stroke="#b6b7ef" stroke-width="1.5"/>
+  <text class="main" x="465" y="292">子任务：实施 → 验证 → 必要修复 → 重验</text>
+  <text class="sub" x="465" y="317">Task Loop: implement, verify, repair when needed, reverify</text>
+  <path class="edge" d="M465 332 V362"/>
+  <rect class="node" x="140" y="366" width="650" height="58" rx="10"/>
+  <text class="main" x="465" y="390">当前 Feature 全部任务及模块验收通过</text>
+  <text class="sub" x="465" y="413">All tasks and module acceptance checks pass</text>
+  <path class="edge" d="M790 395 H878 V203 H794"/>
+  <text class="label" x="892" y="272">还有所选 Feature</text>
+  <text class="label" x="892" y="293">More selected</text>
+  <text class="label" x="892" y="312">Features</text>
+  <path class="edge" d="M465 424 V462"/>
+  <text class="label" x="480" y="449">所选范围完成 / Selected scope complete</text>
+  <rect class="node" x="140" y="466" width="650" height="58" rx="10"/>
+  <text class="main" x="465" y="490">交接成果，保存进度、证据与知识更新</text>
+  <text class="sub" x="465" y="513">Handoff, progress, evidence and knowledge update</text>
+  <path class="edge" d="M465 524 V562"/>
+  <text class="label" x="480" y="549">全部本期 Feature 完成 / All current-scope Features complete</text>
+  <rect x="140" y="566" width="650" height="58" rx="10" fill="#eaf9f3" stroke="#7ec9b2" stroke-width="1.5"/>
+  <text class="main" x="465" y="590">系统整体验收与交付</text>
+  <text class="sub" x="465" y="613">Overall system acceptance and delivery</text>
+  <text x="140" y="647" font-size="13" fill="#4b6584">未完成前置须明确同选；取消不执行。 / Include unfinished prerequisites explicitly; cancellation starts no work.</text>
+</svg>
