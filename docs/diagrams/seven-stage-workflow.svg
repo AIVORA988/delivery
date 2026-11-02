@@ -1,85 +1,119 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="390" viewBox="0 0 1600 390" role="img" aria-labelledby="title desc">
-  <title id="title">delivery · 研发交付七阶段 / Seven-stage delivery workflow</title>
-  <desc id="desc">Mission: requirements; Explore: investigation; Contract: design finalization; Graph: task planning; Loop: execution, verification, repair and reverification; Acceptance: overall acceptance and delivery; Knowledge: documentation and reuse. A separate human Approval Gate sits between Graph and Loop; it is not an eighth stage. Knowledge is maintained throughout implementation.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-labelledby="title desc">
+  <title id="title">delivery · 七阶段、Task Loop 与 Harness / Seven stages, Task Loop and Harness</title>
+  <desc id="desc">Mission: requirements; Explore: investigation; Contract: design finalization; Graph: task planning; Loop: implement, verify, classify failures, repair and reverify within authorization; Acceptance: overall acceptance and delivery; Knowledge: documentation and reuse. The independent human Approval Gate sits between Graph and Loop. A task needs valid PASS evidence and authorization before DONE. Harness supports all seven stages through rules, tools, host permissions, quality checks, evidence and recovery; it is not an additional stage or an execution engine. Agents execute, Skills define rules, and Guard validates records without running application tests or intercepting commands.</desc>
   <defs>
     <linearGradient id="header"><stop stop-color="#0b1f35"/><stop offset="1" stop-color="#145969"/></linearGradient>
     <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f3f8ff"/><stop offset="1" stop-color="#e8f4f7"/></linearGradient>
+    <linearGradient id="loop" x2="0" y2="1"><stop stop-color="#f0eaff"/><stop offset="1" stop-color="#faf8ff"/></linearGradient>
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#b8d5ee" stroke-opacity=".2"/></pattern>
     <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#4985be" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="loop-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#7960ca" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="pass-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#159e94" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <style>
       text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif; text-anchor: middle; fill: #153d5c; }
       .card { fill: #fff; stroke: #b2d7ee; stroke-width: 1.5; }
       .number { font-size: 17px; font-weight: 700; fill: #0c8791; }
       .name { font-size: 24px; font-weight: 700; }
       .label { font-size: 20px; font-weight: 600; }
-      .detail { font-size: 17px; fill: #61829f; }
+      .detail { font-size: 18px; fill: #61829f; }
+      .output { font-size: 18px; font-weight: 600; fill: #0e768e; }
       .edge { fill: none; stroke: #4985be; stroke-width: 2.5; marker-end: url(#arrow); }
+      .cycle { fill: none; stroke: #7960ca; stroke-width: 2.5; marker-end: url(#loop-arrow); stroke-linejoin: round; }
+      .node { font-size: 18px; font-weight: 700; fill: #6855c3; }
+      .support { fill: none; stroke: #9bbfda; stroke-width: 2; }
+      .capability { font-size: 22px; font-weight: 700; }
     </style>
   </defs>
-  <rect width="1600" height="390" rx="18" fill="url(#paper)"/>
-  <rect width="1600" height="390" rx="18" fill="url(#grid)"/>
+  <rect width="1600" height="800" rx="18" fill="url(#paper)"/>
+  <rect width="1600" height="800" rx="18" fill="url(#grid)"/>
   <path d="M18 0H1582Q1600 0 1600 18V105H0V18Q0 0 18 0Z" fill="url(#header)"/>
   <rect x="32" y="26" width="7" height="53" rx="3.5" fill="#42d4c8"/>
   <text x="58" y="55" style="text-anchor:start;font-size:32px;font-weight:700;fill:#f1f8ff">研发交付七阶段</text>
-  <text x="58" y="83" style="text-anchor:start;font-size:19px;fill:#b8d2e1">需求与方案前置 · 人工审批授权 · 受控执行 · 基于证据验收</text>
+  <text x="58" y="83" style="text-anchor:start;font-size:19px;fill:#b8d2e1">需求与方案前置 · 独立人工审批 · 授权范围内迭代 · 基于证据验收</text>
   <text x="1548" y="62" style="text-anchor:end;font-size:22px;font-weight:700;fill:#7ff0df">delivery / V1.0</text>
 
-  <path class="edge" d="M212 230H234"/>
-  <path class="edge" d="M420 230H442"/>
-  <path class="edge" d="M628 230H650"/>
-  <path class="edge" d="M836 230H847"/>
-  <path class="edge" d="M938 230H947"/>
-  <path class="edge" d="M1132 230H1154"/>
-  <path class="edge" d="M1340 230H1362"/>
+  <path class="edge" d="M180 310H196"/><path class="edge" d="M348 310H364"/><path class="edge" d="M516 310H532"/>
+  <path class="edge" d="M684 310H700"/><path class="edge" d="M792 310H808"/><path class="edge" d="M1188 310H1204"/><path class="edge" d="M1378 310H1394"/>
 
-  <rect class="card" x="32" y="134" width="180" height="187" rx="16"/>
-  <circle cx="122" cy="162" r="18" fill="#dff8f5"/><text x="122" y="168" class="number">01</text>
-  <text x="122" y="209" class="name">Mission</text>
-  <text x="122" y="244" class="label">需求理解</text>
-  <text x="122" y="282" class="detail">目标 · 范围 · 不变量</text>
+  <rect class="card" x="32" y="132" width="148" height="350" rx="16"/>
+  <circle cx="106" cy="168" r="18" fill="#dff8f5"/><text x="106" y="174" class="number">01</text>
+  <text x="106" y="217" class="name">Mission</text><text x="106" y="251" class="label">需求理解</text>
+  <text x="106" y="301" class="detail">目标与用户</text><text x="106" y="331" class="detail">范围与不变量</text>
+  <rect x="44" y="405" width="124" height="43" rx="12" fill="#edf8fb"/><text x="106" y="433" class="output">需求说明</text>
 
-  <rect class="card" x="240" y="134" width="180" height="187" rx="16"/>
-  <circle cx="330" cy="162" r="18" fill="#dff8f5"/><text x="330" y="168" class="number">02</text>
-  <text x="330" y="209" class="name">Explore</text>
-  <text x="330" y="244" class="label">现状调查</text>
-  <text x="330" y="282" class="detail">源码 · 依赖 · 复用</text>
+  <rect class="card" x="200" y="132" width="148" height="350" rx="16"/>
+  <circle cx="274" cy="168" r="18" fill="#dff8f5"/><text x="274" y="174" class="number">02</text>
+  <text x="274" y="217" class="name">Explore</text><text x="274" y="251" class="label">现状调查</text>
+  <text x="274" y="301" class="detail">源码与依赖</text><text x="274" y="331" class="detail">知识检索与复用</text>
+  <rect x="212" y="405" width="124" height="43" rx="12" fill="#edf8fb"/><text x="274" y="433" class="output">现状与差异</text>
 
-  <rect class="card" x="448" y="134" width="180" height="187" rx="16"/>
-  <circle cx="538" cy="162" r="18" fill="#dff8f5"/><text x="538" y="168" class="number">03</text>
-  <text x="538" y="209" class="name">Contract</text>
-  <text x="538" y="244" class="label">方案定版</text>
-  <text x="538" y="282" class="detail">设计 · 验收 · 边界</text>
+  <rect class="card" x="368" y="132" width="148" height="350" rx="16"/>
+  <circle cx="442" cy="168" r="18" fill="#dff8f5"/><text x="442" y="174" class="number">03</text>
+  <text x="442" y="217" class="name">Contract</text><text x="442" y="251" class="label">方案定版</text>
+  <text x="442" y="301" class="detail">设计与边界</text><text x="442" y="331" class="detail">验收与风险</text>
+  <rect x="380" y="405" width="124" height="43" rx="12" fill="#edf8fb"/><text x="442" y="433" class="output">方案基线</text>
 
-  <rect class="card" x="656" y="134" width="180" height="187" rx="16"/>
-  <circle cx="746" cy="162" r="18" fill="#dff8f5"/><text x="746" y="168" class="number">04</text>
-  <text x="746" y="209" class="name">Graph</text>
-  <text x="746" y="244" class="label">任务规划</text>
-  <text x="746" y="282" class="detail">拆分 · 依赖 · 检查</text>
+  <rect class="card" x="536" y="132" width="148" height="350" rx="16"/>
+  <circle cx="610" cy="168" r="18" fill="#dff8f5"/><text x="610" y="174" class="number">04</text>
+  <text x="610" y="217" class="name">Graph</text><text x="610" y="251" class="label">任务规划</text>
+  <text x="610" y="301" class="detail">任务与依赖</text><text x="610" y="331" class="detail">检查与授权范围</text>
+  <rect x="548" y="405" width="124" height="43" rx="12" fill="#edf8fb"/><text x="610" y="433" class="output">任务依赖图</text>
 
-  <rect x="850" y="155" width="88" height="145" rx="15" fill="#fff5dd" stroke="#e9ba59" stroke-width="1.5"/>
-  <path d="m882 180 9 9 16-18" fill="none" stroke="#a46d0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="894" y="218" style="font-size:18px;font-weight:700;fill:#875c15">人工审批</text>
-  <text x="894" y="245" style="font-size:13px;fill:#875c15">Approval Gate</text>
-  <text x="894" y="277" style="font-size:14px;fill:#875c15">批准后执行</text>
+  <rect x="704" y="218" width="88" height="162" rx="15" fill="#fff5dd" stroke="#e9ba59" stroke-width="1.5"/>
+  <path d="m736 246 9 9 16-18" fill="none" stroke="#a46d0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="748" y="283" style="font-size:18px;font-weight:700;fill:#875c15">人工审批</text>
+  <text x="748" y="311" style="font-size:13px;fill:#875c15">Approval Gate</text>
+  <text x="748" y="351" style="font-size:14px;fill:#875c15">批准后执行</text>
 
-  <rect x="952" y="134" width="180" height="187" rx="16" fill="#f3f0ff" stroke="#bcacff" stroke-width="1.5"/>
-  <circle cx="1042" cy="162" r="18" fill="#e7dfff"/><text x="1042" y="168" class="number" style="fill:#6855c3">05</text>
-  <text x="1042" y="209" class="name" style="fill:#6855c3">Loop</text>
-  <text x="1042" y="244" class="label">执行与验证闭环</text>
-  <text x="1042" y="278" class="detail">实施 · 验证</text>
-  <text x="1042" y="303" class="detail">必要修复 · 重验</text>
+  <rect x="808" y="128" width="384" height="358" rx="19" fill="none" stroke="#e1d8ff" stroke-width="4"/>
+  <rect x="812" y="132" width="376" height="350" rx="16" fill="url(#loop)" stroke="#a68ce8" stroke-width="2"/>
+  <circle cx="847" cy="166" r="18" fill="#e2d8fb"/><text x="847" y="172" class="number" style="fill:#6855c3">05</text>
+  <text x="1000" y="174" class="name" style="fill:#6855c3;font-size:30px">Loop</text><text x="1000" y="207" class="label">执行与验证闭环</text>
+  <rect x="836" y="240" width="136" height="52" rx="12" fill="#fff" stroke="#c5b5ed"/>
+  <text x="904" y="262" class="node">Implement</text><text x="904" y="283" style="font-size:17px;fill:#6855c3">实施</text>
+  <rect x="1032" y="240" width="136" height="52" rx="12" fill="#fff" stroke="#c5b5ed"/>
+  <text x="1100" y="262" class="node">Verify</text><text x="1100" y="283" style="font-size:17px;fill:#6855c3">验证</text>
+  <path class="cycle" d="M972 266H1026"/><path class="cycle" d="M1138 292V340"/>
+  <text x="1155" y="321" style="font-size:14px;fill:#7960ca">FAIL</text>
+  <rect x="1032" y="346" width="136" height="52" rx="12" fill="#eae1fc" stroke="#b39cde"/>
+  <text x="1100" y="368" class="node">Repair</text><text x="1100" y="389" style="font-size:16px;fill:#6855c3">归因 · 授权内修复</text>
+  <rect x="836" y="346" width="136" height="52" rx="12" fill="#fff" stroke="#c5b5ed"/>
+  <text x="904" y="368" class="node">Reverify</text><text x="904" y="389" style="font-size:17px;fill:#6855c3">重验</text>
+  <path class="cycle" d="M1032 372H978"/><path class="cycle" d="M904 346V317H1066V298"/>
+  <path d="M1168 266H1178V440H1170" fill="none" stroke="#159e94" stroke-width="2" marker-end="url(#pass-arrow)"/>
+  <text x="1148" y="419" style="font-size:13px;font-weight:700;fill:#118b82">PASS</text>
+  <rect x="836" y="424" width="332" height="35" rx="12" fill="#dff5ef"/>
+  <text x="1002" y="448" style="font-size:18px;font-weight:700;fill:#118b82">有效 PASS + 授权 → DONE</text>
+  <text x="1000" y="475" style="font-size:15px;fill:#6855c3">当前任务完成后，推进下一就绪任务</text>
 
-  <rect class="card" x="1160" y="134" width="180" height="187" rx="16"/>
-  <circle cx="1250" cy="162" r="18" fill="#dff8f5"/><text x="1250" y="168" class="number">06</text>
-  <text x="1250" y="209" class="name">Acceptance</text>
-  <text x="1250" y="244" class="label">整体验收与交付</text>
-  <text x="1250" y="282" class="detail">集成 · 回归 · 接收</text>
+  <rect class="card" x="1208" y="132" width="170" height="350" rx="16"/>
+  <circle cx="1293" cy="168" r="18" fill="#dff8f5"/><text x="1293" y="174" class="number">06</text>
+  <text x="1293" y="217" class="name" style="font-size:23px">Acceptance</text><text x="1293" y="251" class="label">整体验收与交付</text>
+  <text x="1293" y="301" class="detail">完整链路与回归</text><text x="1293" y="331" class="detail">接收关联当前版本</text>
+  <rect x="1220" y="405" width="146" height="43" rx="12" fill="#edf8fb"/><text x="1293" y="433" class="output">验收与交付结论</text>
 
-  <rect class="card" x="1368" y="134" width="180" height="187" rx="16"/>
-  <circle cx="1458" cy="162" r="18" fill="#dff8f5"/><text x="1458" y="168" class="number">07</text>
-  <text x="1458" y="209" class="name">Knowledge</text>
-  <text x="1458" y="244" class="label">文档与知识沉淀</text>
-  <text x="1458" y="282" class="detail">文档 · 索引 · 复用</text>
+  <rect class="card" x="1398" y="132" width="170" height="350" rx="16"/>
+  <circle cx="1483" cy="168" r="18" fill="#dff8f5"/><text x="1483" y="174" class="number">07</text>
+  <text x="1483" y="217" class="name" style="font-size:23px">Knowledge</text><text x="1483" y="251" class="label">文档与知识沉淀</text>
+  <text x="1483" y="301" class="detail">更新正文与索引</text><text x="1483" y="331" class="detail">下次需求按需复用</text>
+  <rect x="1410" y="405" width="146" height="43" rx="12" fill="#edf8fb"/><text x="1483" y="433" class="output">知识与恢复入口</text>
 
-  <text x="800" y="363" style="font-size:18px;fill:#527b98">任务 / 模块完成 ≠ 整体交付 · 中断恢复保留审批与累计用量 · 知识随实施持续更新</text>
+  <path class="support" d="M106 528H1483M800 528V570"/>
+  <path class="support" d="M106 528V494" marker-end="url(#arrow)"/><path class="support" d="M274 528V494" marker-end="url(#arrow)"/>
+  <path class="support" d="M442 528V494" marker-end="url(#arrow)"/><path class="support" d="M610 528V494" marker-end="url(#arrow)"/>
+  <path class="support" d="M1000 528V494" marker-end="url(#arrow)"/><path class="support" d="M1293 528V494" marker-end="url(#arrow)"/>
+  <path class="support" d="M1483 528V494" marker-end="url(#arrow)"/>
+  <rect x="667" y="535" width="266" height="27" rx="13" fill="#e4f1f7"/><text x="800" y="555" style="font-size:17px;fill:#527b98">横向支撑贯穿七阶段</text>
+
+  <rect x="32" y="570" width="1536" height="172" rx="18" fill="#e3f1fb" stroke="#a7cde6" stroke-width="1.5"/>
+  <path d="M50 570H1550Q1568 570 1568 588V627H32V588Q32 570 50 570Z" fill="url(#header)"/>
+  <text x="56" y="608" style="text-anchor:start;font-size:28px;font-weight:700;fill:#f1f8ff">Harness · 横向支撑能力</text>
+  <text x="1544" y="606" style="text-anchor:end;font-size:18px;fill:#c7e1ec">Agent 执行 · Skill 定义规则 · Guard 只读校验</text>
+  <rect class="card" x="50" y="639" width="240" height="87" rx="12"/><text x="170" y="672" class="capability">规则与流程</text><text x="170" y="704" class="detail">项目约束 · 共享规范</text>
+  <rect class="card" x="302" y="639" width="240" height="87" rx="12"/><text x="422" y="672" class="capability">工具与环境</text><text x="422" y="704" class="detail">文件 · 命令 · 构建与测试</text>
+  <rect class="card" x="554" y="639" width="240" height="87" rx="12"/><text x="674" y="672" class="capability">权限与资源</text><text x="674" y="704" class="detail">宿主权限 · 操作授权</text>
+  <rect class="card" x="806" y="639" width="240" height="87" rx="12"/><text x="926" y="672" class="capability">质量门禁</text><text x="926" y="704" class="detail">约定构建 · 测试与回归</text>
+  <rect class="card" x="1058" y="639" width="240" height="87" rx="12"/><text x="1178" y="672" class="capability">证据管理</text><text x="1178" y="704" class="detail">基线 · 产物与报告版本</text>
+  <rect class="card" x="1310" y="639" width="240" height="87" rx="12"/><text x="1430" y="672" class="capability">恢复与适配</text><text x="1430" y="704" class="detail">累计用量 · 中断恢复</text>
+  <text x="800" y="778" style="font-size:18px;fill:#527b98">任务 / 模块完成 ≠ 整体交付 · 缺条件、需决策或到限时记录并停止推进 · 知识随实施持续更新</text>
 </svg>

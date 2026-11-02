@@ -20,9 +20,11 @@
 
 ## 七阶段工作流
 
-[![七阶段：Mission 需求理解、Explore 现状调查、Contract 方案定版、Graph 任务规划、Loop 执行与验证闭环、Acceptance 整体验收与交付、Knowledge 文档与知识沉淀](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
+[![七阶段工作流：独立人工审批、任务执行验证修复闭环，以及贯穿全流程的 Harness 横向支撑](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
 
 **人工审批是独立关口，位于 Graph 与 Loop 之间。** 批准后在授权范围内执行；任务完成后仍须整体验收，知识随实施持续更新。
+
+**Loop** 按任务依赖推进实施、验证、失败归因、授权内修复与重验。**Harness** 为七阶段提供规则、工具、环境、权限、质量检查、证据与恢复支撑；Agent 执行研发操作，Guard 只读校验记录。[职责与实现边界](docs/design.md#职责分离与工具解耦)
 
 ## 快速开始
 
@@ -106,21 +108,9 @@ Guard 是只读确定性校验器，不运行项目测试、自动计时、实�
 
 **初始化入口 → 按需检索并核对源码 → 方案采用 → 实施更新 → 验收整理 → 下一需求复用。**
 
-```text
-.delivery/runs/<需求ID>/
-├── plan.md               可读审批方案
-└── record.json           任务、审批、证据、用量与恢复入口
-docs/knowledge/
-├── README.md             主题索引、覆盖范围与继续入口（安装时初始化）
-├── project.md            项目概况与约束
-├── modules/              模块规则、接口与数据关系
-├── decisions/            决策与适用条件
-├── guides/               开发、运行与验证步骤
-├── lessons/              根因、修复与预防
-└── deliveries/           有长期参考价值的交付摘要
-```
+[![目标项目文档结构：.agents/skills 安装五个 Skill；.delivery 保存接入配置与需求的 plan.md、record.json；docs/knowledge 保存索引与按需生成的项目、模块、决策、指南、经验和交付知识](docs/diagrams/document-structure.svg)](docs/diagrams/document-structure.svg)
 
-除知识入口外，正文和目录按需生成。确认空库时跳过空文档；有内容时定向检索，核对当前源码和适用版本，不全量加载。已有文档原位维护并建立索引；必要更新纳入批准任务，随实施持续沉淀，不等待已批准的后续真实环境验证。保留来源、验证边界与未知项；无增量说明理由，不机械新增文档。内部记录由 Agent 维护，用户无需填写 JSON 或摘要。
+图示为**目标项目接入后的默认目录**。`.delivery/runs/<需求ID>/plan.md` 保存可读审批方案，`record.json` 保存任务、审批、证据引用、用量与恢复入口；长期知识以 `docs/knowledge/README.md` 为索引。除知识入口外，正文和目录按需生成。确认空库时跳过空文档；有内容时定向检索，核对当前源码和适用版本，不全量加载。已有文档原位维护并建立索引；必要更新纳入批准任务，随实施持续沉淀，不等待已批准的后续真实环境验证。保留来源、验证边界与未知项；无增量说明理由，不机械新增文档。内部记录由 Agent 维护，用户无需填写 JSON 或摘要。
 
 需要集中梳理存量项目时单独调用：
 

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-labelledby="title desc">
+  <title id="title">delivery · 目标项目文档与记录结构 / Documents and records in a target project</title>
+  <desc id="desc">This diagram shows paths in the target project, not the delivery source repository. Installed Skills live in .agents/skills/. Local setup uses .delivery/project.json and .delivery/install.json. Each requirement uses .delivery/runs/&lt;run-id&gt;/plan.md for the reviewable plan and record.json for tasks, approvals, evidence references, usage and recovery. The default long-term knowledge index is docs/knowledge/README.md; project.md, modules/, decisions/, guides/, lessons/ and deliveries/ are created on demand. Only a missing knowledge index is initialized during setup. Existing documents remain in place and are linked from the index. Original reports stay at the actual locations referenced by record.json. Knowledge is retrieved, checked against source, used in planning, updated during implementation and reviewed for reuse.</desc>
+  <defs>
+    <linearGradient id="header"><stop stop-color="#0b1f35"/><stop offset="1" stop-color="#145969"/></linearGradient>
+    <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f3f8ff"/><stop offset="1" stop-color="#e8f4f7"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#b8d5ee" stroke-opacity=".2"/></pattern>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#4985be" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif; fill: #153d5c; }
+      .heading { font-size: 28px; font-weight: 700; }
+      .path { font-family: Consolas, "Microsoft YaHei", monospace; font-size: 22px; font-weight: 600; fill: #0e768e; }
+      .body { font-size: 20px; fill: #315a7b; }
+      .note { font-size: 18px; fill: #61829f; }
+      .branch { fill: none; stroke: #8bb7d9; stroke-width: 2; }
+      .step { font-size: 22px; font-weight: 600; text-anchor: middle; }
+    </style>
+  </defs>
+  <rect width="1600" height="800" rx="18" fill="url(#paper)"/>
+  <rect width="1600" height="800" rx="18" fill="url(#grid)"/>
+  <path d="M18 0H1582Q1600 0 1600 18V105H0V18Q0 0 18 0Z" fill="url(#header)"/>
+  <rect x="32" y="26" width="7" height="53" rx="3.5" fill="#42d4c8"/>
+  <text x="58" y="55" style="font-size:32px;font-weight:700;fill:#f1f8ff">文档与记录结构</text>
+  <text x="58" y="83" style="font-size:19px;fill:#b8d2e1">目标项目中的默认目录 · 执行记录与长期知识各有职责</text>
+  <text x="1548" y="62" style="text-anchor:end;font-size:22px;font-weight:700;fill:#7ff0df">delivery / V1.0</text>
+
+  <rect x="32" y="132" width="730" height="520" rx="18" fill="#fff" stroke="#b2d7ee" stroke-width="1.5"/>
+  <rect x="32" y="152" width="7" height="38" rx="3" fill="#19b6b1"/>
+  <text x="58" y="177" class="heading">01 · 接入与需求记录</text><text x="58" y="220" class="path">目标项目/</text>
+  <path class="branch" d="M72 234V388M72 250H91M72 296H91M72 342H91M72 388H91M106 402V480M106 434H125M106 480H125"/>
+  <text x="100" y="257" class="path">.agents/skills/</text><text x="439" y="257" class="body">五个 Skill 的安装位置</text>
+  <text x="100" y="303" class="path">.delivery/project.json</text><text x="439" y="303" class="body">项目配置 · 知识路径登记</text>
+  <text x="100" y="349" class="path">.delivery/install.json</text><text x="439" y="349" class="body">安装回执 · 受管文件校验</text>
+  <text x="100" y="395" class="path">.delivery/runs/&lt;需求ID&gt;/</text><text x="439" y="395" class="body">同一需求跨批次复用</text>
+  <text x="135" y="441" class="path">plan.md</text><text x="439" y="441" class="body">可读方案 · 审批基线</text>
+  <text x="135" y="487" class="path">record.json</text><text x="439" y="487" class="body">任务 · 审批 · 证据引用</text>
+  <text x="439" y="517" class="note">累计用量 · 接收与恢复入口</text>
+  <rect x="52" y="550" width="690" height="80" rx="12" fill="#edf7fc"/>
+  <text x="72" y="580" class="note">原始验证报告按 record.json 中的实际引用保留。</text>
+  <text x="72" y="610" class="note">共享知识摘要不替代原审批记录或原始验证证据。</text>
+
+  <rect x="790" y="132" width="778" height="520" rx="18" fill="#fff" stroke="#b2d7ee" stroke-width="1.5"/>
+  <rect x="790" y="152" width="7" height="38" rx="3" fill="#8a75d6"/>
+  <text x="816" y="177" class="heading">02 · 长期知识与复用</text><text x="1540" y="176" class="note" style="text-anchor:end">除入口外，按需生成</text>
+  <text x="816" y="220" class="path">docs/knowledge/</text>
+  <path class="branch" d="M830 234V557M830 269H849M830 316H849M830 363H849M830 410H849M830 457H849M830 504H849M830 551H849"/>
+  <text x="858" y="276" class="path">README.md</text><text x="1085" y="276" class="body">主题索引 · 覆盖与继续入口</text>
+  <rect x="1380" y="254" width="160" height="30" rx="15" fill="#dff5ef"/><text x="1460" y="275" style="text-anchor:middle;font-size:16px;font-weight:600;fill:#118b82">安装初始化</text>
+  <text x="858" y="323" class="path">project.md</text><text x="1085" y="323" class="body">项目概况 · 模块边界与约束</text>
+  <text x="858" y="370" class="path">modules/</text><text x="1085" y="370" class="body">模块规则 · 接口与数据关系</text>
+  <text x="858" y="417" class="path">decisions/</text><text x="1085" y="417" class="body">设计决策 · 理由与适用条件</text>
+  <text x="858" y="464" class="path">guides/</text><text x="1085" y="464" class="body">开发 · 运行与验证步骤</text>
+  <text x="858" y="511" class="path">lessons/</text><text x="1085" y="511" class="body">根因 · 修复与预防</text>
+  <text x="858" y="558" class="path">deliveries/</text><text x="1085" y="558" class="body">有长期参考价值的交付摘要</text>
+  <rect x="810" y="583" width="738" height="47" rx="12" fill="#f3f0ff"/><text x="830" y="613" class="note">已有文档原位维护，由索引引用；执行进度以 record 为准。</text>
+
+  <rect x="32" y="679" width="1536" height="72" rx="18" fill="#e5f2f9" stroke="#b2d7ee"/>
+  <text x="244" y="723" class="step">按需检索并核对源码</text><text x="587" y="723" class="step">方案采用</text>
+  <text x="917" y="723" class="step">随实施增量更新</text><text x="1321" y="723" class="step">验收整理与下一需求复用</text>
+  <path d="M422 715H469" fill="none" stroke="#4985be" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M709 715H756" fill="none" stroke="#4985be" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M1082 715H1129" fill="none" stroke="#4985be" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="800" y="782" class="note" style="text-anchor:middle">安装只创建缺失的知识入口 · 正文按需沉淀 · 确认空库则跳过读取 · 知识不替代审批与验证</text>
+</svg>

@@ -14,9 +14,11 @@ Users set goals, approve plans and accept deliverables. Agents investigate, desi
 
 ## Seven-stage workflow
 
-[![Mission: requirements; Explore: investigation; Contract: design finalization; Graph: task planning; Loop: execution and verification; Acceptance: overall acceptance and delivery; Knowledge: documentation and reuse](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
+[![Seven-stage workflow with an independent Approval Gate, the Task Loop and Harness support across all stages (Chinese)](docs/diagrams/seven-stage-workflow.svg)](docs/diagrams/seven-stage-workflow.svg)
 
 **The independent Approval Gate sits between Graph and Loop.** Execution stays within approved scope. Completing tasks does not replace overall acceptance; knowledge is updated throughout implementation.
+
+The **Loop** follows task dependencies through implementation, verification, failure diagnosis, authorized repair and reverification. **Harness** supports all seven stages with rules, tools, environments, host permissions, quality checks, evidence and recovery. Agents perform development work; Guard validates records without executing it. [Responsibilities and implementation boundaries](docs/design.md#职责分离与工具解耦) (Chinese)
 
 ## Quick start
 
@@ -100,21 +102,9 @@ Guard is a read-only deterministic validator. It does not run application tests,
 
 **Initialize → retrieve and check against source → use in the plan → update during implementation → review at acceptance → reuse in the next request.**
 
-```text
-.delivery/runs/<run-id>/
-├── plan.md               Reviewable plan
-└── record.json           Tasks, approvals, evidence, usage and recovery
-docs/knowledge/
-├── README.md             Topic index, coverage and continuation points (initialized on install)
-├── project.md            Project overview and constraints
-├── modules/              Module rules, interfaces and data relationships
-├── decisions/            Decisions and applicability
-├── guides/               Development, operation and verification procedures
-├── lessons/              Root causes, fixes and prevention
-└── deliveries/           Delivery summaries with lasting reference value
-```
+[![Target-project structure: installed Skills in .agents/skills; setup and per-run plan.md and record.json in .delivery; long-term project, module, decision, guide, lesson and delivery knowledge indexed in docs/knowledge (Chinese)](docs/diagrams/document-structure.svg)](docs/diagrams/document-structure.svg)
 
-Only the knowledge entry is initialized; other files and directories are created when useful. Skip confirmed empty knowledge, otherwise retrieve relevant topics and check them against current source and applicable versions. Maintain existing documents in place and link them from the index. Required updates belong to approved tasks and progress with implementation, without waiting for approved follow-up live validation. Preserve sources, verification limits and unknowns; explain when there is no increment instead of creating redundant documents. Agents maintain internal records; users need not edit JSON or hashes.
+These are the **default paths in a target project after setup**. `.delivery/runs/<run-id>/plan.md` holds the reviewable plan; `record.json` holds tasks, approvals, evidence references, usage and recovery. Long-term knowledge is indexed in `docs/knowledge/README.md`. Only the knowledge entry is initialized; other files and directories are created when useful. Skip confirmed empty knowledge, otherwise retrieve relevant topics and check them against current source and applicable versions. Maintain existing documents in place and link them from the index. Required updates belong to approved tasks and progress with implementation, without waiting for approved follow-up live validation. Preserve sources, verification limits and unknowns; explain when there is no increment instead of creating redundant documents. Agents maintain internal records; users need not edit JSON or hashes.
 
 For a dedicated knowledge pass on an existing project:
 
