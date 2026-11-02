@@ -10,6 +10,16 @@
 
 所有新开发需求使用本记录，简单任务精简方案深度，不省略审批或必要验证。规划与执行入口复用原记录；纯只读排查不授权实施。
 
+## Git 实际修改范围
+
+`new` 在 Git 可用且项目位于仓库内时自动保存 `workspace`，在创建本需求文件前读取，不暂存、不提交、不修改业务文件。结构为 `{ "head": "起始提交 SHA 或 null", "dirty": { "项目相对路径": { "worktree": "file:SHA256 / link:SHA256 / null", "index": "mode:blob-id / null" } } }`；null HEAD 表示尚无首次提交。工作区指纹覆盖文件内容及可执行位，链接只读取目标文本；它与 Evidence 的文件内容摘要用途不同。非空 workspace 纳入原 Graph 摘要，改写起点使原审批失效，不允许事后用当前状态补造起点。
+
+有效审批下，Guard 通过只读 Git 查询与实际文件指纹核对起点以来的累计差异，覆盖暂存、未暂存、未跟踪、删除、重命名及执行期间已提交的修改。起点已有且未变的改动不归入本次；其内容、暂存状态或存在性变化仍须复核。授权范围为当前批准任务的 paths，加同基线有效历史授权覆盖的 DONE 任务路径，以及已绑定内容的 contracts；仅写在未授权任务或宽泛 approval.paths 中的路径不构成任务执行范围。本需求 `.delivery/runs/<id>/` 是记录与报告目录，不作为业务修改核对对象；其他目录不自动豁免，必要文档与知识路径须纳入任务。
+
+输出 `change_scope`：PASS 表示此次范围核对通过；FAIL 的 outside 列出越界路径；NOT_VERIFIED 表示原 Git 工作区不可读、冲突或不支持的变更，后二者均阻止执行就绪和最终交付。WAITING_APPROVAL 表示尚无有效审批；其他记录错误应同时查看 issues。旧记录或非 Git 环境无原始 workspace 时输出 NOT_CONFIGURED，保留原审批与任务语义，Agent 必须人工核对实际差异，不能声称自动范围检查通过。Guard 不自动迁移旧记录。
+
+此核对限定项目目录与检查时的累计差异，不能归因多个操作者、检测已撤销的瞬时写入、Git 忽略的未跟踪产物或项目外操作；变更子模块内容须另行人工处理。它不是实时拦截、逐操作授权或权限沙箱。Git 配置和工作区须可信，报告真实性与业务影响仍由 Agent 和接收方核实。
+
 ## 结构
 
 | 字段 | 最低内容 |
@@ -18,6 +28,7 @@
 | scenario | 新需求为 simple / standard / feature；整个 Graph 分别≤3 / ≤15，或每 Feature≤30 个任务 |
 | features（Feature 场景） | id、title、depends_on、checks；每 Feature 至少一个任务，模块完成状态由任务及证据推导 |
 | contracts | 参与审批的稳定设计 / 接口文件的项目相对路径数组；Feature 场景须非空，普通场景可选 |
+| workspace（可选） | new 读取的原始 Git HEAD 与已有改动指纹；缺失 / null 表示没有自动范围核对起点 |
 | tasks | id、title、paths、depends_on、state、repairs、used_minutes、checks；异常任务补 note |
 | checks | 全局唯一 id，kind，method，expected；条件项补 trigger / reason |
 | approval | decision、reviewer、at、source、plan_sha256、graph_sha256、tasks、paths、operations、limits |
@@ -116,7 +127,7 @@ features 返回 id、title、tasks、done（已标记 DONE 数）、tasks_done�
 
 DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查通过且证据有效。未经授权的 DONE 产生 DONE_AUTHORIZATION 问题并阻止交付。Feature 场景还须全部模块 complete；全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
 
-Guard 输出的 `acceptance_sha256` 是接收版本摘要，不是批准或接收证明。它绑定当前 plan / Graph 基线、任务 / Feature / overall 的适用必需检查及 failure_blocks 检查的最新证据，以及 handoff.artifacts / docs 中各文件的路径和实际内容。整体检查未通过或必要交付文件不齐时为 null。交付文件应为稳定产物或说明，不将持续写入的本 run record.json 本身列为稳定交付文件，避免摘要自引用。
+Guard 输出的 `acceptance_sha256` 是接收版本摘要，不是批准或接收证明。仅在全部任务合法 DONE、任务 / Feature / 整体必需检查通过、审批及限额有效、无校验错误、必要交付文件和知识交接就绪时生成；实际接收本身在摘要生成后记录，其他前提未满足时为 null。它绑定当前 plan / Graph 基线、任务 / Feature / overall 的适用必需检查及 failure_blocks 检查的最新证据，以及 handoff.artifacts / docs 中各文件的路径和实际内容。交付文件应为稳定产物或说明，不将持续写入的本 run record.json 本身列为稳定交付文件，避免摘要自引用。
 
 先完成必要检查和交付材料，取得非空 acceptance_sha256，按该版本进行约定接收。仅在真实接收来源确实覆盖当前基线与成果后，将该摘要写入 `overall.accepted_sha256`，同时记录实际 accepted_by / accepted_at / source，再运行 Guard 核对。Guard 不回填字段；不得随重验自动覆盖摘要来沿用旧接收。基线、受约束证据或交付文件变化后摘要不匹配，delivery_ready=false；任务执行授权、batch_complete 和有效历史 DONE 仍按原规则判定。
 

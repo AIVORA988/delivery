@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -16,13 +17,14 @@ def save(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def fingerprint(path):
-    return {"path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+def fingerprint(path, project):
+    return {"path": path.relative_to(project).as_posix(), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
 def cli(project, command, *args, expected=0):
     process = subprocess.run([sys.executable, "-X", "utf8", str(SCRIPT), command,
-        "--project", str(project), *args], capture_output=True, text=True, encoding="utf-8")
+        "--project", str(project), *args], capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "GIT_CEILING_DIRECTORIES": str(project.parent)})
     if process.returncode != expected:
         raise RuntimeError(process.stdout + process.stderr)
     return json.loads(process.stdout)
@@ -80,14 +82,14 @@ if __name__ == "__main__":
             passed = actual.returncode == 0 and (expected is None or actual.stdout.strip() == expected)
             if not passed:
                 raise AssertionError(actual.stdout + actual.stderr)
-            report = project / f"report-{cid}.txt"
+            report = path.parent / f"report-{cid}.txt"
             report.write_text(json.dumps({"command": command, "returncode": actual.returncode,
                 "stdout": actual.stdout, "stderr": actual.stderr, "expected_stdout": expected},
                 ensure_ascii=False, indent=2), encoding="utf-8")
             data["evidence"].append({"id": f"E-{cid}", "check": cid, "baseline": draft["baseline"],
                 "method": method, "actual": "Actual local process exited successfully and assertions matched",
                 "result": "PASS", "at": now, "producer": "isolated local demo",
-                "subjects": [fingerprint(app)], "report": fingerprint(report)})
+                "subjects": [fingerprint(app, project)], "report": fingerprint(report, project)})
         data["tasks"][0]["state"] = "DONE"
         data["overall"].update({"accepted_by": "SYNTHETIC RECEIVER", "accepted_at": now,
             "source": "Synthetic fixture receipt, not real project acceptance"})

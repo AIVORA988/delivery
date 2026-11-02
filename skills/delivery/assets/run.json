@@ -5,6 +5,7 @@
   "scope": "待明确本期目标与非目标",
   "scenario": "standard",
   "contracts": [],
+  "workspace": null,
   "tasks": [],
   "approval": {
     "decision": "PENDING",

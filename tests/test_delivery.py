@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "skills/delivery/scripts/delivery.py"
@@ -22,6 +23,10 @@ class DeliveryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        # A parent directory may itself be a repository on a developer's machine.
+        discovery = mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.root.parent)})
+        discovery.start()
+        self.addCleanup(discovery.stop)
         (self.root / "src.py").write_text("value = 1\n", encoding="utf-8")
         (self.root / "README.md").write_text("Run the sample locally.\n", encoding="utf-8")
 
@@ -110,6 +115,199 @@ class DeliveryTests(unittest.TestCase):
 
     def codes(self, result):
         return {x["code"] for x in result["issues"]}
+
+    def git(self, *args):
+        if not shutil.which("git"):
+            self.skipTest("Git is unavailable")
+        return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "commit.gpgsign=false",
+            "-c", "user.name=Test fixture", "-c", "user.email=fixture@example.invalid",
+            "-c", f"core.hooksPath={self.temp.name}/no-hooks", "-C", self.temp.name, *args],
+            capture_output=True, check=True).stdout
+
+    def start_git(self, commit=True):
+        if not (self.root / ".git").exists():
+            self.git("init", "--quiet")
+            self.git("add", "src.py", "README.md")
+            if commit:
+                self.git("commit", "--quiet", "-m", "Fixture baseline")
+        self.start()
+        self.record["tasks"][0]["paths"] += ["README.md", "report-C1.txt", "report-C2.txt"]
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+
+    def test_git_scope_rejects_outside_changes_and_final_receipt(self):
+        self.start_git()
+        self.finish_task("T01")
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        other = self.root / "outside.txt"
+        other.write_text("Unapproved new file", encoding="utf-8")
+        for staged in (False, True):
+            with self.subTest(staged=staged):
+                if staged:
+                    self.git("add", "outside.txt")
+                result = d.guard(self.root, "sample")
+                self.assertEqual(result["change_scope"]["outside"], ["outside.txt"])
+                self.assertIn("CHANGE_SCOPE", self.codes(result))
+                self.assertFalse(result["delivery_ready"])
+                self.assertIsNone(result["acceptance_sha256"])
+
+    def test_git_scope_checks_deletion_rename_and_committed_changes(self):
+        other = self.root / "outside.txt"
+        other.write_text("Original", encoding="utf-8")
+        self.start_git()
+        # outside.txt was already present at the start; unchanged content is ignored.
+        self.assertEqual(d.guard(self.root, "sample")["change_scope"]["changed"], [])
+        self.git("add", "outside.txt")
+        self.git("commit", "--quiet", "-m", "Stage preexisting fixture")
+        self.assertEqual(d.guard(self.root, "sample")["change_scope"]["outside"], ["outside.txt"])
+        other.rename(self.root / "renamed.txt")
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["change_scope"]["outside"], ["outside.txt", "renamed.txt"])
+        (self.root / "renamed.txt").unlink()
+        self.assertEqual(d.guard(self.root, "sample")["change_scope"]["outside"], ["outside.txt"])
+
+    def test_git_scope_keeps_original_dirty_files_and_detects_later_edits(self):
+        self.git("init", "--quiet")
+        self.git("add", "src.py", "README.md")
+        self.git("commit", "--quiet", "-m", "Fixture baseline")
+        (self.root / "README.md").write_text("Already edited", encoding="utf-8")
+        self.git("add", "README.md")
+        (self.root / "preexisting.txt").write_text("Already present", encoding="utf-8")
+        self.start_git()
+        self.record["tasks"][0]["paths"] = ["src.py"]
+        self.approve()
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+        for ref in ("README.md", "preexisting.txt"):
+            with self.subTest(path=ref):
+                (self.root / ref).write_text("Later edit", encoding="utf-8")
+                self.assertIn(ref, d.guard(self.root, "sample")["change_scope"]["outside"])
+
+    def test_git_scope_detects_staged_change_even_when_worktree_is_restored(self):
+        self.start_git()
+        original = (self.root / "README.md").read_bytes()
+        self.record["tasks"][0]["paths"] = ["src.py"]
+        self.approve()
+        (self.root / "README.md").write_text("Staged change", encoding="utf-8")
+        self.git("add", "README.md")
+        (self.root / "README.md").write_bytes(original)
+        self.assertEqual(d.guard(self.root, "sample")["change_scope"]["outside"], ["README.md"])
+
+    def test_git_scope_accepts_authorized_changes_without_mutating_index(self):
+        self.start_git()
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        self.git("add", "src.py")
+        self.git("commit", "--quiet", "-m", "Authorized fixture change")
+        self.finish_task("T01")
+        self.accept()
+        before = (self.root / ".git/index").read_bytes()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["delivery_ready"], result["issues"])
+        self.assertEqual(result["change_scope"]["status"], "PASS")
+        self.assertIn("src.py", result["change_scope"]["changed"])
+        self.assertEqual(before, (self.root / ".git/index").read_bytes())
+
+    def test_git_scope_supports_unborn_head_and_project_subdirectories(self):
+        self.start_git(commit=False)
+        self.assertIsNone(self.record["workspace"]["head"])
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+        # Committing unchanged, already staged input does not manufacture a change.
+        self.git("commit", "--quiet", "-m", "First fixture commit")
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+        project = self.root / "nested"
+        project.mkdir()
+        (project / "中文.txt").write_text("Nested original", encoding="utf-8")
+        self.git("add", "nested")
+        self.git("commit", "--quiet", "-m", "Nested fixture")
+        baseline = d.git_snapshot(project, "nested")
+        self.assertEqual(baseline["dirty"], {})
+        (project / "中文.txt").write_text("Nested edit", encoding="utf-8")
+        (self.root / "sibling.txt").write_text("Sibling", encoding="utf-8")
+        current = d.git_snapshot(project, "nested", baseline["head"])
+        self.assertEqual(set(current["dirty"]), {"中文.txt"})
+
+    def test_git_scope_preserves_completed_batch_authorization(self):
+        self.start_git()
+        second = copy.deepcopy(self.record["tasks"][0])
+        second.update({"id": "T02", "title": "Next task", "paths": ["next.py"],
+            "state": "PENDING", "depends_on": ["T01"], "checks": [self.check_def("C3")]})
+        self.record["tasks"].append(second)
+        self.approve(["T01"])
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        (self.root / "next.py").write_text("Unauthorized pending task", encoding="utf-8")
+        self.assertEqual(d.guard(self.root, "sample")["change_scope"]["outside"], ["next.py"])
+        (self.root / "next.py").unlink()
+        self.finish_task("T01")
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.approve(["T02"])
+        self.record["approval"]["paths"] = ["next.py"]
+        self.record["tasks"][1]["state"] = "READY"
+        self.save()
+        result = d.guard(self.root, "sample", "T02")
+        self.assertTrue(result["execution_ready"], result["issues"])
+        self.assertEqual(result["change_scope"]["outside"], [])
+
+    def test_git_scope_baseline_is_approval_bound_and_unavailable_git_blocks(self):
+        self.start_git()
+        original = copy.deepcopy(self.record["workspace"])
+        self.record["workspace"]["head"] = None
+        self.save()
+        self.assertFalse(d.guard(self.root, "sample")["execution_ready"])
+        self.record["workspace"] = original
+        self.save()
+        (self.root / ".git").rename(self.root / "git-hidden")
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["change_scope"]["status"], "NOT_VERIFIED")
+        self.assertFalse(result["execution_ready"])
+
+    def test_legacy_record_does_not_invent_a_git_baseline(self):
+        self.start_git()
+        self.record.pop("workspace")
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        self.finish_task("T01")
+        self.accept()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["delivery_ready"], result["issues"])
+        self.assertEqual(result["change_scope"]["status"], "NOT_CONFIGURED")
+        self.assertNotIn("workspace", d.read_json(self.record_path))
+
+    def test_git_scope_rejects_malformed_original_snapshots(self):
+        self.start_git()
+        for value in ({}, {"head": 1, "dirty": {}}, {"head": None, "dirty": []},
+                      {"head": None, "dirty": {"../outside": {"worktree": None, "index": None}}},
+                      {"head": None, "dirty": {"file": {"worktree": "PASS", "index": None}}}):
+            with self.subTest(value=value):
+                self.record["workspace"] = value
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertIn("WORKSPACE", self.codes(result))
+                self.assertFalse(result["delivery_ready"])
+
+    def test_non_git_project_reports_manual_change_scope_review(self):
+        self.complete()
+        self.assertIsNone(self.record["workspace"])
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["change_scope"]["status"], "NOT_CONFIGURED")
+        self.assertTrue(result["delivery_ready"])
+
+    def test_git_scope_allows_bound_planning_inputs_and_only_current_run_records(self):
+        self.start_git()
+        design = self.root / "docs/api.md"
+        design.write_text("Approved stable API contract", encoding="utf-8")
+        self.record["contracts"] = ["docs/api.md"]
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        (self.record_path.parent / "report.txt").write_text("Run-local report", encoding="utf-8")
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+        (self.root / ".delivery/unapproved.txt").write_text("Other file", encoding="utf-8")
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["change_scope"]["outside"], [".delivery/unapproved.txt"])
 
     def test_inspection_is_read_only_bounded_and_excludes_dependencies(self):
         hidden = self.root / "node_modules/pkg"
@@ -409,6 +607,46 @@ class DeliveryTests(unittest.TestCase):
         result = d.guard(self.root, "sample")
         self.assertTrue(result["record_valid"])
         self.assertTrue(result["delivery_ready"])
+
+    def test_final_receipt_digest_is_unavailable_until_tasks_are_done(self):
+        self.start()
+        self.approve()
+        self.evidence("C1")
+        self.record["tasks"][0]["state"] = "VERIFYING"
+        self.accept()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertIsNone(result["acceptance_sha256"])
+        self.record["tasks"][0]["state"] = "DONE"
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertIsNotNone(result["acceptance_sha256"])
+        self.assertFalse(result["delivery_ready"])
+        self.receive()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_final_receipt_digest_requires_all_delivery_prerequisites(self):
+        self.complete()
+        original = copy.deepcopy(self.record)
+        for kind in ("task_check", "authorization", "usage", "knowledge", "overall", "files"):
+            with self.subTest(kind=kind):
+                self.record = copy.deepcopy(original)
+                if kind == "task_check":
+                    self.record["evidence"][0]["result"] = "NOT_RUN"
+                elif kind == "authorization":
+                    self.record["approval"]["decision"] = "PENDING"
+                elif kind == "usage":
+                    self.record["tasks"][0]["used_minutes"] = 61
+                elif kind == "knowledge":
+                    self.record["handoff"]["knowledge"] = {"status": "PENDING"}
+                elif kind == "overall":
+                    self.record["evidence"][-1]["result"] = "NOT_RUN"
+                else:
+                    self.record["handoff"]["docs"] = []
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertIsNone(result["acceptance_sha256"])
+                self.assertFalse(result["delivery_ready"])
 
     def test_reverification_cannot_reuse_receipt_for_previous_artifact_version(self):
         self.complete()

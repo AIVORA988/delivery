@@ -28,6 +28,8 @@ metadata:
 
 新需求用 `new --project <项目> --id <需求标识> --title <标题> --scenario simple` 或 `--scenario standard` 建立 `.delivery/runs/<标识>/plan.md` 与 `record.json`。计划保存审批视图，状态、用量和证据统一写 record；同一需求跨会话和分批实施复用原记录，不改历史审批。未运行工具时明确说明校验未执行。
 
+在实施前建立记录以保留原始 Git 工作区起点；实际修改核对与非 Git / 旧记录的人工核对边界以 [record.md](references/record.md) 和共享执行规范为准，不通过重建起点隐藏已有差异。
+
 ## 七阶段主流程
 
 ### 1. Mission：需求理解
