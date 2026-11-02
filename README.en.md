@@ -129,7 +129,7 @@ Click a diagram to view the full-resolution original (Chinese). See [Usage](docs
 - **Task dependencies and authorization scope**: check acyclic dependencies, approved batches and path boundaries. DONE tasks require valid current or historical approval coverage.
 - **Evidence validity**: source, artifact and raw-report fingerprints must match. Changed files invalidate the current result; historical evidence is retained.
 - **Bounded repair and recovery**: validate recorded repair counts and elapsed time against limits, retaining cumulative usage and recovery details across interruptions. Unconfigured limits do not imply unlimited execution.
-- **Separate task and overall acceptance**: task completion does not replace overall acceptance, a recorded receipt or required handoff materials.
+- **Separate task and overall acceptance**: task completion does not replace overall acceptance or required handoff materials. An acceptance fingerprint binds the receipt to the approval baseline, verification evidence and delivered files; changes do not carry an old receipt forward automatically.
 - **Current delivery scope and follow-up validation**: explicitly approved follow-ups remain separate, while documentation and knowledge are updated as work progresses.
 
 The read-only Guard is a deterministic validator of record consistency and referenced files. It does not execute or intercept project commands, measure elapsed time, authenticate reviewers, establish report authenticity, or enforce an operating-system sandbox. Agents and the agreed recipients remain responsible for actual operation authorization, changed-file scope, impact analysis and business acceptance under project rules. Installation success means CONFIGURED, not application correctness.

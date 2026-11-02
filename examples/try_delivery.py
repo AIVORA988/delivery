@@ -94,6 +94,8 @@ if __name__ == "__main__":
         data["handoff"].update({"artifacts": ["app.py"], "docs": ["README.md"],
             "knowledge": {"status": "NO_INCREMENT", "reason": "Fixture README already describes the sample"}})
         save(path, data)
+        data["overall"]["accepted_sha256"] = cli(project, "guard", "--id", "sample")["acceptance_sha256"]
+        save(path, data)
         complete = cli(project, "guard", "--id", "sample")
         app.write_text(app.read_text(encoding="utf-8").replace(".lower()", ""), encoding="utf-8")
         changed = cli(project, "guard", "--id", "sample", expected=1)

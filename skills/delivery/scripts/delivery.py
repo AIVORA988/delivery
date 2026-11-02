@@ -351,13 +351,16 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
     def strings(value: object) -> bool:
         return isinstance(value, list) and all(present(v) for v in value)
 
-    def project_refs(value: object, field: str, require: bool = False) -> None:
+    def project_refs(value: object, field: str, require: bool = False) -> bool:
         if not strings(value) or (require and not value):
             error("REFERENCES", field, "Expected project-relative references")
-            return
+            return False
+        valid = True
         for ref in value:
             if not safe(root, ref).is_file():
                 error("MISSING_FILE", field, f"Reference does not exist: {ref}")
+                valid = False
+        return valid
 
     if type(record.get("schema_version")) is not int or record["schema_version"] != 1 or record.get("id") != run_id:
         error("SCHEMA", "id", "Schema or run identity mismatch")
@@ -761,8 +764,8 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
     handoff = record["handoff"]
     if any(t["state"] in {"BLOCKED", "NEED_DECISION", "STOPPED"} for t in tasks.values()) and not present(handoff.get("resume")):
         error("RESUME", "handoff.resume", "Save a resume entry before handing off")
-    project_refs(handoff.get("artifacts", []), "handoff.artifacts")
-    project_refs(handoff.get("docs", []), "handoff.docs")
+    artifacts_valid = project_refs(handoff.get("artifacts", []), "handoff.artifacts")
+    docs_valid = project_refs(handoff.get("docs", []), "handoff.docs")
     knowledge = handoff.get("knowledge", {})
     if not isinstance(knowledge, dict) or knowledge.get("status") not in {
             "PENDING", "UPDATED", "NO_INCREMENT", "DRAFT_READY"}:
@@ -772,7 +775,20 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
         project_refs(knowledge.get("refs"), "handoff.knowledge.refs", require=True)
     elif knowledge["status"] == "NO_INCREMENT" and not present(knowledge.get("reason")):
         error("KNOWLEDGE", "handoff.knowledge", "No-increment requires a reason")
-    accepted = all(present(overall.get(k)) for k in ("accepted_by", "accepted_at", "source"))
+    acceptance_sha256 = None
+    if (artifacts_valid and docs_valid and handoff.get("artifacts") and handoff.get("docs")
+            and checks_pass(overall["checks"])):
+        receipt_checks = {c["id"] for c in required_checks(list(checks.values()))}
+        receipt_checks.update(cid for cid, c in checks.items() if c.get("failure_blocks"))
+        receipt = {"baseline": baseline,
+                   "evidence": {cid: evidence.get(latest.get(cid)) for cid in sorted(receipt_checks)},
+                   "files": [{"path": ref, "sha256": digest(safe(root, ref).read_bytes())}
+                             for ref in sorted(set(handoff["artifacts"] + handoff["docs"]))]}
+        acceptance_sha256 = digest(json.dumps(receipt, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+    accepted = (all(present(overall.get(k)) for k in ("accepted_by", "accepted_at", "source"))
+                and acceptance_sha256 is not None and overall.get("accepted_sha256") == acceptance_sha256)
+    if acceptance_sha256 is not None and not accepted:
+        waiting.append("Record actual acceptance for the current acceptance_sha256; an old receipt is not current")
     ready = bool(tasks) and all(t["state"] == "DONE" for t in tasks.values())
     ready = ready and checks_pass(overall["checks"]) and accepted and valid_approval and policy_ready
     ready = ready and design_ready and all(feature_complete.values())
@@ -803,6 +819,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                               "blocked_by": [d for d in f["depends_on"] if not feature_complete[d]]}
                              for fid, f in features.items()]} if scenario == "feature" else {}),
             "delivery_ready": bool(ready) and not issues, "baseline": baseline,
+            "acceptance_sha256": acceptance_sha256,
             "next_tasks": next_tasks, "check_results": verdicts,
             "followups_pending": [f["id"] for f in record["followups"] if f["status"] != "PASS"],
             "waiting": list(dict.fromkeys(waiting)), "issues": issues,

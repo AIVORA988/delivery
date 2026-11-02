@@ -23,7 +23,7 @@
 | approval | decision、reviewer、at、source、plan_sha256、graph_sha256、tasks、paths、operations、limits |
 | approval_history（可选） | 按批准顺序保留的历史 APPROVED 完整快照，字段与 approval 一致；省略等同空数组 |
 | evidence | 唯一 id、check、baseline、method、actual、result、at、producer、report、subjects |
-| overall | 独立 checks、accepted_by、accepted_at、source |
+| overall | 独立 checks、accepted_by、accepted_at、source、accepted_sha256 |
 | followups | id、goal、method、reason、required_for_scope=false、resume、status |
 | handoff | artifacts、docs、knowledge、resume |
 
@@ -115,6 +115,12 @@ features 返回 id、title、tasks、done（已标记 DONE 数）、tasks_done�
 `batch_complete` 是派生结果：当前审批及有限规则有效、批准任务非空、该批次全部 DONE 且必需证据通过、无记录问题；不要求其余模块或 overall 已完成。`remaining_tasks` 列出原 Graph 中尚未 DONE 的任务。分批切换沿用同一 run 和基线，历史快照规则不变；本批次完成时保存 handoff.resume，最终集成与整体验收仍决定 delivery_ready。
 
 DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查通过且证据有效。未经授权的 DONE 产生 DONE_AUTHORIZATION 问题并阻止交付。Feature 场景还须全部模块 complete；全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
+
+Guard 输出的 `acceptance_sha256` 是接收版本摘要，不是批准或接收证明。它绑定当前 plan / Graph 基线、任务 / Feature / overall 的适用必需检查及 failure_blocks 检查的最新证据，以及 handoff.artifacts / docs 中各文件的路径和实际内容。整体检查未通过或必要交付文件不齐时为 null。交付文件应为稳定产物或说明，不将持续写入的本 run record.json 本身列为稳定交付文件，避免摘要自引用。
+
+先完成必要检查和交付材料，取得非空 acceptance_sha256，按该版本进行约定接收。仅在真实接收来源确实覆盖当前基线与成果后，将该摘要写入 `overall.accepted_sha256`，同时记录实际 accepted_by / accepted_at / source，再运行 Guard 核对。Guard 不回填字段；不得随重验自动覆盖摘要来沿用旧接收。基线、受约束证据或交付文件变化后摘要不匹配，delivery_ready=false；任务执行授权、batch_complete 和有效历史 DONE 仍按原规则判定。
+
+该字段不加入 Graph 摘要，不改审批或证据基线。批次切换、状态 / 用量、恢复入口、后续专项状态及未纳入上述文件或证据的可选知识更新不影响接收摘要。旧记录缺少 accepted_sha256 时仍可读取、恢复任务和保留有效审批；最终交付须核实可追溯原接收是否覆盖当前版本，无法证明时重新完成约定接收，不能自动补摘要。摘要不提供身份认证、防篡改或未引用文件的变更检测。
 
 knowledge.status 为 PENDING / UPDATED / NO_INCREMENT / DRAFT_READY；UPDATED / DRAFT_READY 要有实际稿件引用，NO_INCREMENT 要有理由。知识库不可写时允许交接更新稿，后续同步不默认阻断本期。
 

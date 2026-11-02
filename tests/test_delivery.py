@@ -88,10 +88,15 @@ class DeliveryTests(unittest.TestCase):
 
     def accept(self):
         self.evidence("C2")
-        self.record["overall"].update({"accepted_by": "Fixture receiver",
-            "accepted_at": "2026-10-22T10:10:00+08:00", "source": "Fixture acceptance"})
         self.record["handoff"].update({"artifacts": ["src.py"], "docs": ["README.md"],
             "knowledge": {"status": "NO_INCREMENT", "reason": "Sample README already sufficient"}})
+        self.receive()
+
+    def receive(self):
+        self.record["overall"].update({"accepted_by": "Fixture receiver",
+            "accepted_at": "2026-10-22T10:10:00+08:00", "source": "Fixture acceptance"})
+        self.save()
+        self.record["overall"]["accepted_sha256"] = d.guard(self.root, "sample")["acceptance_sha256"]
         self.save()
 
     def complete_two_batches(self):
@@ -357,7 +362,7 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(d.check(self.root)["status"], "CONFIGURED")
         self.record["evidence"][0]["subjects"].append(
             {"path": "docs/knowledge/README.md", "sha256": d.digest(entry.read_bytes())})
-        self.save()
+        self.receive()
         self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
         entry.write_text("# Checked documentation changed again\n", encoding="utf-8")
         self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
@@ -403,6 +408,105 @@ class DeliveryTests(unittest.TestCase):
         self.complete()
         result = d.guard(self.root, "sample")
         self.assertTrue(result["record_valid"])
+        self.assertTrue(result["delivery_ready"])
+
+    def test_reverification_cannot_reuse_receipt_for_previous_artifact_version(self):
+        self.complete()
+        receipt = copy.deepcopy(self.record["overall"])
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        self.evidence("C1")
+        self.evidence("C2")
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertTrue(result["batch_complete"])
+        self.assertEqual(set(result["check_results"].values()), {"PASS"})
+        self.assertEqual(self.record["overall"], receipt)
+        self.assertFalse(result["delivery_ready"])
+
+    def test_changed_handoff_file_cannot_reuse_receipt(self):
+        self.complete()
+        for field in ("artifacts", "docs"):
+            with self.subTest(field=field):
+                added = self.root / f"additional-{field}.txt"
+                added.write_text("Original delivered content\n", encoding="utf-8")
+                self.record["handoff"][field].append(added.name)
+                self.save()
+                self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+                self.receive()
+                self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+                added.write_text("Changed delivered content\n", encoding="utf-8")
+                result = d.guard(self.root, "sample")
+                self.assertEqual(set(result["check_results"].values()), {"PASS"})
+                self.assertFalse(result["delivery_ready"])
+                self.record["handoff"][field].remove(added.name)
+
+    def test_new_baseline_and_fresh_checks_do_not_reconfirm_receipt(self):
+        self.complete()
+        self.plan.write_text("Revised approved design\n", encoding="utf-8")
+        self.approve()
+        self.evidence("C1")
+        self.evidence("C2")
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertTrue(result["batch_complete"])
+        self.assertFalse(result["delivery_ready"])
+        self.receive()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_receipt_binds_all_required_evidence_and_in_place_report_changes(self):
+        self.complete()
+        for cid in ("C1", "C2"):
+            with self.subTest(check=cid):
+                self.evidence(cid)
+                self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+                self.receive()
+                self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        report = self.root / "report-C2.txt"
+        report.write_text("New actual results for the same check\n", encoding="utf-8")
+        self.record["evidence"][-1]["report"]["sha256"] = d.digest(report.read_bytes())
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["check_results"]["C2"], "PASS")
+        self.assertFalse(result["delivery_ready"])
+
+    def test_missing_legacy_receipt_binding_preserves_approval_and_task_progress(self):
+        self.complete_two_batches()
+        del self.record["overall"]["accepted_sha256"]
+        self.save()
+        before = self.record_path.read_bytes()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"])
+        self.assertTrue(result["batch_complete"])
+        self.assertFalse(result["delivery_ready"])
+        self.assertEqual(self.record_path.read_bytes(), before)
+        self.receive()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_receipt_hash_alone_cannot_replace_actual_receipt_metadata(self):
+        self.complete()
+        for key in ("accepted_by", "accepted_at", "source", "accepted_sha256"):
+            with self.subTest(key=key):
+                original = self.record["overall"][key]
+                self.record["overall"][key] = ""
+                self.save()
+                self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+                self.record["overall"][key] = original
+
+    def test_receipt_ignores_batch_progress_and_optional_knowledge_updates(self):
+        self.complete_two_batches()
+        baseline = d.guard(self.root, "sample")["baseline"]
+        receipt = self.record["overall"]["accepted_sha256"]
+        self.record["tasks"][1]["used_minutes"] = 5
+        self.record["approval_history"].append(copy.deepcopy(self.record["approval"]))
+        self.approve(["T01"])
+        entry = self.root / "docs/knowledge/README.md"
+        entry.write_text("# Reusable finding\nSource: src.py\n", encoding="utf-8")
+        self.record["handoff"]["knowledge"] = {"status": "UPDATED", "refs": ["docs/knowledge/README.md"]}
+        self.record["handoff"]["resume"] = "No pending task; retain existing history"
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["baseline"], baseline)
+        self.assertEqual(result["acceptance_sha256"], receipt)
         self.assertTrue(result["delivery_ready"])
 
     def test_unapproved_done_task_with_pass_evidence_cannot_deliver(self):
@@ -604,9 +708,16 @@ class DeliveryTests(unittest.TestCase):
         self.approve()
         self.evidence("C1")
         self.evidence("C2")
+        self.receive()
         result = d.guard(self.root, "sample")
         self.assertTrue(result["delivery_ready"])
         self.assertEqual(result["followups_pending"], ["F01"])
+        receipt = result["acceptance_sha256"]
+        self.record["followups"][0]["status"] = "FAIL"
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["acceptance_sha256"], receipt)
+        self.assertTrue(result["delivery_ready"])
 
     def test_required_check_cannot_be_hidden_in_followups(self):
         self.start()
@@ -726,6 +837,8 @@ class DeliveryTests(unittest.TestCase):
         self.evidence("O1", "NOT_RUN")
         self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
         self.evidence("O1")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.receive()
         self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
 
     def test_nonblocking_optional_failure_preserves_optional_semantics(self):
@@ -771,6 +884,7 @@ class DeliveryTests(unittest.TestCase):
         (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
         self.evidence("C1")
         self.evidence("C2")
+        self.receive()
         result = d.guard(self.root, "sample")
         self.assertTrue(result["delivery_ready"])
         self.assertFalse(any("missing or changed" in x for x in result["waiting"]))
@@ -789,7 +903,7 @@ class DeliveryTests(unittest.TestCase):
         self.evidence("C1")
         self.evidence("C2")
         self.record["tasks"][0]["state"] = "DONE"
-        self.save()
+        self.receive()
         self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
 
     def test_executed_evidence_without_baseline_is_rejected(self):
@@ -1179,6 +1293,8 @@ class DeliveryTests(unittest.TestCase):
         self.accept()
         self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
         self.evidence("FC2")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.receive()
         complete = d.guard(self.root, "sample", feature_ids=["F01", "F02"])
         self.assertTrue(complete["selection_complete"])
         self.assertTrue(complete["delivery_ready"])
