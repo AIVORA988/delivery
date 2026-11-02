@@ -11,7 +11,7 @@ metadata:
 
 ## 接入与共享规则
 
-先读取适用项目规则、用户指定范围、既有知识索引及工作区状态。读取配套 delivery 的唯一 [知识规则](../delivery/references/knowledge.md)。两者同包安装，独立调用不依赖上次对话；配套文件缺失时报告需从完整分发补齐，不猜测规则或自动从网络安装。
+先读取适用项目规则、用户指定范围、既有知识索引及工作区状态。读取配套 delivery 的唯一 [知识规则](../delivery/references/knowledge.md)。五个 Skill 同包安装，独立调用不依赖上次对话；配套文件缺失时报告需从完整分发补齐，不猜测规则或自动从网络安装。
 
 项目未初始化时按 [接入规则](../delivery/references/setup.md) 调用配套脚本 inspect → init → check，保留已有配置和知识。CONFIGURED 只代表静态接入。缺少 Python 时说明工具检查未执行，按项目现有文件工作，不自动安装全局运行时。
 

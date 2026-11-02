@@ -45,7 +45,7 @@ if __name__ == "__main__":
         cli(project, "inspect")
         cli(project, "init")
         configured = cli(project, "check")
-        cli(project, "new", "--id", "sample", "--title", "Synthetic local input slice")
+        cli(project, "new", "--id", "sample", "--title", "Synthetic local input slice", "--scenario", "simple")
         path = project / ".delivery/runs/sample/record.json"
         data = json.loads(path.read_text(encoding="utf-8"))
         method1, method2 = "local input assertions", "local command-line scenario"

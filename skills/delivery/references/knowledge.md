@@ -1,14 +1,14 @@
 # 项目知识：初始化、沉淀与复用
 
-delivery 与 delivery-bootstrap 共用本规则。Agent 负责检索、核实和编辑；Python 只做有界发现、文件与记录校验，不判断业务结论正确性。
+四个研发入口与 delivery-bootstrap 共用本规则。Agent 负责检索、核实和编辑；Python 只做有界发现、文件与记录校验，不判断业务结论正确性。
 
 ## 入口和目录
 
 默认入口为项目内 `docs/knowledge/README.md`，登记在 `.delivery/project.json` 的 `knowledge_paths`。沿用入口所列 project、modules、decisions、guides、lessons、deliveries 分类；目录按需生成。已有架构、API、数据库和运行文档原位维护，索引引用原文，不复制第二套正文。
 
-`init` 同时安装两个 Skill，只创建缺失的知识入口并补齐路径登记。重复初始化保留正文、用户配置和原规则；升级仅替换与安装回执匹配的受管 Skill 文件，生成的知识文件不受模板哈希管理。官方安装入口调用 inspect → init → check；其他宿主首次调用时检查接入，不能把“已复制 Skill”当作 CONFIGURED。
+`init` 同时安装五个 Skill，只创建缺失的知识入口并补齐路径登记。重复初始化保留正文、用户配置和原规则；升级仅替换与安装回执匹配的受管 Skill 文件，生成的知识文件不受模板哈希管理。官方安装入口调用 inspect → init → check；其他宿主首次调用时检查接入，不能把“已复制 Skill”当作 CONFIGURED。
 
-只在用户明确要求集中梳理、补全或恢复存量知识时使用 `$delivery-bootstrap`；日常 `$delivery` 直接按需调查，不把缺少 Bootstrap 当作研发前置条件。调用语法与发现能力以实际宿主为准。
+只在用户明确要求集中梳理、补全或恢复存量知识时使用 `$delivery-bootstrap`；规划与执行入口直接按需调查，不把缺少 Bootstrap 当作研发前置条件。调用语法与发现能力以实际宿主为准。
 
 ## 按需读取
 

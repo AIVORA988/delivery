@@ -33,7 +33,7 @@ class PackageTests(unittest.TestCase):
         self.assertIn('version: "V1.0"', text)
         self.assertNotIn("[TODO", text)
         skills = {p.parent.name for p in (ROOT / "skills").glob("*/SKILL.md")}
-        self.assertEqual(skills, {"delivery", "delivery-bootstrap"})
+        self.assertEqual(skills, {"delivery", "delivery-run", "delivery-feature", "delivery-feature-run", "delivery-bootstrap"})
 
     def test_distribution_has_no_pdf_or_credentials(self):
         for path in ROOT.rglob("*"):

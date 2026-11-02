@@ -1,0 +1,4 @@
+interface:
+  display_name: "delivery-run"
+  short_description: "执行已审批的普通与存量需求，按任务依赖验证、修复、恢复并交付"
+  default_prompt: "使用 $delivery-run 执行当前已批准方案，保留累计用量，按任务依赖完成验证、验收和知识更新。"

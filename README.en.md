@@ -20,68 +20,75 @@ Workflow V1.0, package 1.0.0, Python 3.10+, standard library only.
 
 ## Quick start
 
-Use a tool that supports Agent Skills in your target project. This example requires detailed design and approval. After installation, independent low-risk fixes can be requested directly; the agent selects the appropriate path.
+Use a tool that supports Agent Skills in your target project. Every development request is planned and approved before implementation. Small changes use concise plans rather than skipping approval.
 
 ### 1. Install
 
 ```text
 Install delivery from https://github.com/AIVORA988/delivery into the current project,
-including both Skills and the knowledge entry. Preserve existing rules and local changes.
+including all five Skills and the knowledge entry. Preserve existing rules, local changes and run records.
 ```
 
 ### 2. Describe the requirement
 
-```text
-Use the delivery Skill to build a shopping WeChat Mini Program with product browsing,
-a cart, checkout with WeChat Pay, and order lookup. First present the requirements,
-design, task breakdown and acceptance methods. Wait for my approval before implementation.
-```
+| Scenario | Example prompt | Task limit |
+| --- | --- | --- |
+| Small fix or feature change | `$delivery Fix the order-status filter.` | 3 per run |
+| Complex existing-system change | `$delivery Add split shipments to this store.` | 15 per run |
+| New medium or large system | `$delivery-feature Plan the store from the architecture and detailed design in docs/design, organized by Feature.` | 30 per Feature |
+
+The agent investigates, defines the plan, dependencies and acceptance criteria, then waits for human approval. Complex changes require applicable business, API, data, failure, concurrency, consistency and compatibility design. New medium or large systems require architecture and detailed-design documents. Split oversized scopes or Features into reasonable boundaries instead of hiding independent work inside oversized tasks.
 
 ### 3. Approve and execute
 
 Send this after reviewing and approving the plan:
 
 ```text
-I approve the current plan and task scope. Use the delivery Skill to implement it, verify the result,
-perform overall acceptance and update the usage instructions. Keep live-payment checks
-pending only when they have explicitly been approved as follow-up validation.
+I approve the current plan and task list. Execute within the agreed scope and limits.
 ```
 
-See [START.md](START.md) for manual installation and conflict handling.
+Request revisions if the plan is not approved. Once approval permits implementation, the agent uses the corresponding execution Skill. Approval without permission to start is retained without executing. Ordinary plans run a Task Loop; Feature plans first let the developer select one or more approved Features. Selected Features run sequentially in dependency order, with a Task Loop inside each for implementation, verification, repair and reverification. Tasks do not need repeated approval.
 
-## Two Skill entry points
+Use `$delivery-run` or `$delivery-feature-run` to resume later. Selection narrows existing authorization; it is not a new approval. Unapproved work, stale baselines and unmet prerequisites cannot start. Feature completion requires task checks and module acceptance; final system acceptance remains separate. See [START.md](START.md) for installation and upgrades and [Usage](docs/usage.md) for a complete interaction (Chinese).
+
+## Skill responsibilities
 
 | Skill | Purpose |
 | --- | --- |
-| `$delivery` | Daily development, including targeted knowledge retrieval, approval, execution, acceptance and incremental updates |
+| [`$delivery`](skills/delivery/SKILL.md) | Plan ordinary and existing-system requirements, define tasks and obtain approval |
+| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from architecture and detailed design, defining Features, tasks, contracts and dependencies |
+| [`$delivery-run`](skills/delivery-run/SKILL.md) | Execute or resume an approved ordinary plan through the shared Task Loop |
+| [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Select one or more Features, advance Features in order and run the Task Loop within each |
 | `$delivery-bootstrap` | Explicit, scoped knowledge construction for an existing project, with source references and resumable coverage |
 
-Daily work only needs `$delivery`. When an existing project needs a dedicated knowledge pass:
+When an existing project needs a dedicated knowledge pass:
 
 ```text
 $delivery-bootstrap Document the order and payment modules. Preserve existing documentation,
 cite sources, distinguish unverified behavior and record where to continue.
 ```
 
-Bootstrap does not run during installation, modify application code, or add a development stage. Both Skills ship together; discovery and invocation syntax depend on the host.
+All five Skills ship together and share the plan, record, Guard and knowledge rules. Bootstrap does not run during installation, modify application code or add a development stage. Skills guide the current agent; they do not launch a scheduler or additional agents. Discovery and invocation depend on the host.
 
-## Small fixes, detailed design and module batches
+## Feature selection and execution batches
 
-Use `$delivery` for daily work. The agent selects a path based on risk:
+After overall approval, `$delivery-feature-run` shows each Feature's name, task progress, module acceptance, authorization and unmet dependencies. Developers select one or more Features; hosts without a native multi-select control use a numbered conversation list. Cancellation or no response starts no work.
 
-- **Independent, low-risk fixes and internal API adjustments:** investigate, implement and run focused checks plus relevant regression tests under the user's actual fix authorization. Separate plans, run records and knowledge articles are not mandatory.
-- **Complex or high-risk requirements:** complete the applicable business, interface, data, failure, concurrency, consistency, compatibility and acceptance design before approval and implementation.
-- **Cross-module work:** use one design and Graph across calls, with producer/consumer contracts, dependencies, retained approval batches and a final integration task.
+Unfinished prerequisites must be included explicitly or already have passed module acceptance. Missing prerequisites prompt a selection change rather than an automatic scope expansion. Complete the current Feature's tasks and module acceptance before moving to the next. Save actual progress, evidence, cumulative usage and continuation points, update relevant knowledge, and resume without rerunning still-valid DONE tasks.
 
-The lightweight path compresses the seven responsibilities and reuses explicit authorization; it does not bypass project rules or an existing standard run. Payment, authorization, migrations, public contract changes and shared business rules require risk review regardless of patch size. Requests limited to planning or one module remain binding.
+```mermaid
+flowchart TD
+    A[Select one or more approved Features] --> B[Advance the current Feature in dependency order]
+    B --> C[Task Loop: implement, verify, repair and reverify]
+    C --> D[All current Feature tasks and module checks pass]
+    D -->|More selected Features| B
+    D -->|Selection complete| E[Handoff, progress and knowledge update]
+    E -->|All current-scope Features complete| F[Overall system acceptance and delivery]
+```
 
-After installation, send the prompt that matches your task, for example:
+Task limits count the whole Graph or each Feature, including completed tasks, rather than the current approval batch. Payment, authorization, migrations, public contract changes and shared rules retain appropriate design and validation depth regardless of patch size. Planning-only, deferred execution and module-specific instructions remain binding.
 
-- **Small fix:** `$delivery Fix pagination not resetting when a filter changes. Preserve ordinary paging and run the relevant regression checks.`
-- **Detailed design:** `$delivery Add multi-warehouse stock reservations and cancellation releases to this store. First prepare an implementable design, task plan and acceptance criteria. Wait for approval before implementation.`
-- **Module batch:** `$delivery Continue the existing stock reservation run. Implement only the approved inventory module, reuse the design, contracts and records, verify it and hand it off. Do not proceed to the order module.`
-
-Optional `record.contracts` binds stable external design or API files to the existing baseline. Content changes invalidate approval and evidence. Guard's `--task` checks a specific task; `batch_complete` describes the current approved batch, while `delivery_ready` still requires overall acceptance. These are record checks, not runtime interception. See [Usage](docs/usage.md) for short prompts (Chinese).
+`record.contracts` binds stable design and API files to the baseline. Changes invalidate approval and evidence. Guard's `--task` checks a specific task; Feature execution also requires `--features F01 F02`. `selection_complete` describes selected Features, `batch_complete` the current approved task batch, and `delivery_ready` the overall delivery conditions. These are record checks, not runtime interception.
 
 ## Workflow and example
 
@@ -126,6 +133,7 @@ Click a diagram to view the full-resolution original (Chinese). See [Usage](docs
 ## Core validation mechanisms
 
 - **Approval baseline consistency**: approval is bound to plan and task-definition hashes. Material changes invalidate the baseline; routine progress updates do not.
+- **Scenario and Feature constraints**: new runs enforce 3 / 15 / 30 tasks, with the last limit applied per Feature. Membership, dependencies and module acceptance are bound to approval; selection cannot expand authorization.
 - **Task dependencies and authorization scope**: check acyclic dependencies, approved batches and path boundaries. DONE tasks require valid current or historical approval coverage.
 - **Evidence validity**: source, artifact and raw-report fingerprints must match. Changed files invalidate the current result; historical evidence is retained.
 - **Bounded repair and recovery**: validate recorded repair counts and elapsed time against limits, retaining cumulative usage and recovery details across interruptions. Unconfigured limits do not imply unlimited execution.
@@ -142,13 +150,13 @@ When all required task checks, overall acceptance, handoff materials and the agr
 
 ## Project integration and implementation boundaries
 
-The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing project rules and local changes are preserved; existing plans and records may be reused without mandatory migration. Isolated investigations and minor fixes follow the project's lightweight process.
+The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing rules and local changes are preserved. Historical records retain their original baseline and approval without mandatory migration. Records without scenario keep legacy validation semantics; new runs must declare a scenario. Small changes still need a concise plan and approval. Read-only investigation does not authorize implementation.
 
 ## Knowledge capture and reuse
 
 **Initialize → Read → Reference → Update → Review → Reuse.**
 
-Installation deploys both Skills and creates only `docs/knowledge/README.md`, registering the path in `knowledge_paths`. Other files are created when useful:
+Installation deploys all five Skills and creates only `docs/knowledge/README.md`, registering the path in `knowledge_paths`. Other files are created when useful:
 
 ```text
 docs/knowledge/

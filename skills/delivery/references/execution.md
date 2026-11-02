@@ -6,7 +6,7 @@
 
 核对批准方案、Graph、阶段授权、项目规则、实际工作区与剩余资源。外层选可恢复活动任务或下一个 READY 任务，内层闭环当前任务：
 
-标准记录在每项任务开始 / 恢复前运行 `guard --project <项目> --id <原需求ID> --task <TaskID>`，要求退出 0 且 execution_ready=true，再核对本轮用户限制。无 --task 时的全局 execution_ready 仅表示至少一项可执行，不授权任意任务；Guard 不代替操作前实际范围核对。轻量独立修复按主 Skill 压缩职责，不为调用 Guard 额外创建标准记录。
+所有新需求在每项任务开始 / 恢复前运行 `guard --project <项目> --id <原需求ID> --task <TaskID>`，要求退出 0 且 execution_ready=true，再核对本轮用户限制。无 --task 时的全局结果不授权任意任务；Guard 不代替操作前实际范围核对。Feature 型方案还须同时传 `--features <本轮所选ID...>`；普通执行入口不能绕过 Feature 选择。
 
 ```text
 读取有效审批、范围与资源规则
@@ -26,6 +26,12 @@
 ```
 
 恢复 VERIFYING / REPAIRING 时先核实现状，选择验证或修复；不要因任务不是 READY 而遗漏，也不盲目重复外部写入。命令、进程与被检查产物应对应当前任务。
+
+### Feature 外层与任务内层
+
+delivery-feature-run 先收集本轮单选或多选，取消 / 未答不执行。用 --features 校验 selection_ready，依 feature_order 串行推进；所选未完成前置须同选，遗漏不自动补入。当前 Feature 的子任务按上文 Task Loop 执行，完成记录仅写原 record。全部子任务 DONE 后执行 Feature 的 checks 并保存真实证据，模块 complete 后才推进依赖它的 Feature。没有新任务但模块检查未完成时应做已批准模块验收，不把 execution_ready=false 误解为模块验收已通过。
+
+selection_complete 仅代表本轮选择完成，batch_complete 仍代表原批准任务批次完成。阶段交接更新知识和 handoff.resume；下次重新确认本轮范围，保留有效进度与用量。全部本期 Feature 完成后独立执行 overall 的完整链路 / 异常 / 回归与实际接收。共享规则不启动后台调度或真实并行引擎。
 
 ### 失败分类和退出
 

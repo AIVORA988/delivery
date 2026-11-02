@@ -16,14 +16,17 @@ python skills/delivery/scripts/delivery.py check --project ../your-project
 
 macOS / Linux 可使用 python3，Windows 可使用 py -3。也可下载 GitHub ZIP，无需安装 Git。检查成功只表示 CONFIGURED，不代表业务项目构建或验收通过。
 
-使用完整仓库或 ZIP，保留 `skills/delivery` 与 `skills/delivery-bootstrap`。init 一次安装两个入口并创建 `docs/knowledge/README.md`，保留已有知识与配置，不运行深度分析。复制 Skill 文件或安装插件本身不保证 Python 已执行；首次调用时由 Agent 核对并补齐项目接入。旧安装从完整分发重新 init 即可升级，原审批和需求记录保持原样。
+使用完整仓库或 ZIP，保留 skills 下全部五个相邻 Skill 目录。init 一次安装四个研发入口和 Bootstrap，并创建 `docs/knowledge/README.md`，保留已有知识与配置，不运行深度分析。复制 Skill 文件或安装插件本身不保证 Python 已执行；首次调用时由 Agent 核对并补齐项目接入。旧安装从完整分发重新 init 即可升级，原审批和需求记录保持原样。
 
-## 两个使用入口
+## 使用入口
 
-- `$delivery`：日常研发，按需读取、核对和更新知识；新项目空库正常跳过。
+- `$delivery`：普通 / 存量需求规划，自动判断简短或完整方案，等待审批；任务上限 3 / 15。
+- `$delivery-feature`：全新中大型项目规划，必须提供架构与详细设计，每 Feature 最多 30 个子任务。
+- `$delivery-run`：执行或恢复已批准的普通方案，按任务依赖 Loop。
+- `$delivery-feature-run`：确认本轮单个或多个 Feature，按依赖逐模块执行各自 Task Loop。
 - `$delivery-bootstrap`：用户明确要求时集中分析存量项目，可指定模块并按索引恢复；不修改业务代码。
 
-知识目录与读写约定见 [知识规则](skills/delivery/references/knowledge.md)，用户示例见 [使用手册](docs/usage.md)。调用语法和自动发现以宿主支持为准。
+批准且授权开始后由 Agent 使用对应执行入口；执行命令本身不构成审批，Feature 选择不扩大原授权。旧单 / 双 Skill 安装重新 init 补齐，新 check 要求完整包，但升级不改原需求与审批。知识目录见 [知识规则](skills/delivery/references/knowledge.md)，完整示例见 [使用手册](docs/usage.md)。入口发现和原生多选控件以宿主支持为准，无多选弹框时使用编号列表，不安装 GUI。
 
 ## 安装冲突
 

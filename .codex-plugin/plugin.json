@@ -9,9 +9,9 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "delivery",
-    "shortDescription": "需求与方案前置、人工审批授权、受控执行与基于证据验收。",
+    "shortDescription": "需求规划与执行分离、人工审批授权、Feature 与任务闭环、基于证据验收。",
     "developerName": "Long",
     "category": "Productivity",
-    "defaultPrompt": "使用 $delivery 检查项目接入状态，整理需求、方案和任务拆分，提交审批后按约交付。"
+    "defaultPrompt": "使用 $delivery 规划普通或存量需求；全新中大型项目使用 $delivery-feature 并提供详细设计。提交方案与任务供人工审批，获准后使用对应执行入口。"
   }
 }

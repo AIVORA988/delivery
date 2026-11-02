@@ -15,7 +15,8 @@ import tempfile
 VERSION = "1.0.0"
 WORKFLOW = "V1.0"
 SKILL = Path(__file__).resolve().parents[1]
-COMPANION = "delivery-bootstrap"
+COMPANIONS = ("delivery-run", "delivery-feature", "delivery-feature-run", "delivery-bootstrap")
+SCENARIOS = {"simple": 3, "standard": 15, "feature": 30}
 KNOWLEDGE = "docs/knowledge"
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 STATES = {"PENDING", "READY", "RUNNING", "VERIFYING", "REPAIRING", "DONE",
@@ -91,7 +92,7 @@ def write_atomic(path: Path, data: bytes) -> None:
 
 def payload(folder: Path = SKILL) -> dict[str, bytes]:
     if linked(folder) or not (folder / "SKILL.md").is_file():
-        raise ValueError(f"Incomplete distribution: {folder.name}/SKILL.md is required; install both Skills")
+        raise ValueError(f"Incomplete distribution: {folder.name}/SKILL.md is required; install all five Skills")
     files = {}
     for path in sorted(folder.rglob("*")):
         if "__pycache__" in path.parts or path.suffix == ".pyc":
@@ -125,14 +126,15 @@ def inspect(root: Path) -> dict:
 
 
 def initialize(root: Path) -> dict:
-    sources = {"delivery": payload(), COMPANION: payload(SKILL.parent / COMPANION)}
+    sources = {name: payload(SKILL.parent / name) for name in ("delivery", *COMPANIONS)}
     config_path = safe(root, ".delivery/project.json")
     receipt_path = safe(root, ".delivery/install.json")
     previous = read_json(receipt_path) if receipt_path.exists() else {}
     companions = previous.get("companions", {})
-    if not isinstance(companions, dict) or set(companions) - {COMPANION}:
+    if not isinstance(companions, dict) or set(companions) - set(COMPANIONS):
         raise ValueError("Invalid install receipt; review it before upgrading")
-    manifests = {"delivery": previous.get("files", {}), COMPANION: companions.get(COMPANION, {})}
+    manifests = {"delivery": previous.get("files", {}),
+                 **{name: companions.get(name, {}) for name in COMPANIONS}}
     config = read_json(config_path) if config_path.exists() else {
         "schema_version": 1, "workflow": WORKFLOW, "commands": {}, "knowledge_paths": [],
         "baseline": "NOT_VERIFIED",
@@ -175,7 +177,8 @@ def initialize(root: Path) -> dict:
         writes[config_path] = packed(config)
     receipt = {"schema_version": 1, "package_version": VERSION, "workflow": WORKFLOW,
                "files": {p: digest(b) for p, b in sources["delivery"].items()},
-               "companions": {COMPANION: {p: digest(b) for p, b in sources[COMPANION].items()}}}
+               "companions": {name: {p: digest(b) for p, b in sources[name].items()}
+                              for name in COMPANIONS}}
     if not receipt_path.exists() or read_json(receipt_path) != receipt:
         writes[receipt_path] = packed(receipt)
     for target, data in writes.items():
@@ -249,10 +252,11 @@ def check(root: Path) -> dict:
     if not isinstance(config.get("commands"), dict) or not isinstance(config.get("policy"), dict):
         issues.append("Project commands/policy must be objects")
     companions = receipt.get("companions", {})
-    if not isinstance(companions, dict) or set(companions) - {COMPANION}:
+    if not isinstance(companions, dict) or set(companions) - set(COMPANIONS):
         issues.append("Invalid companion manifest")
         companions = {}
-    manifests = {"delivery": receipt.get("files"), COMPANION: companions.get(COMPANION)}
+    manifests = {"delivery": receipt.get("files"),
+                 **{name: companions.get(name) for name in COMPANIONS}}
     for name, files in manifests.items():
         if (not isinstance(files, dict) or "SKILL.md" not in files
                 or (name == "delivery" and "scripts/delivery.py" not in files)):
@@ -282,15 +286,19 @@ def run_paths(root: Path, run_id: str) -> tuple[Path, Path]:
     return safe(root, base + "/plan.md"), safe(root, base + "/record.json")
 
 
-def new_run(root: Path, run_id: str, title: str) -> dict:
+def new_run(root: Path, run_id: str, title: str, scenario: str = "standard") -> dict:
     if not present(title) or any(ord(c) < 32 for c in title):
         raise ValueError("Title must be a nonempty single line")
+    if scenario not in SCENARIOS:
+        raise ValueError("Unknown planning scenario")
     plan, record = run_paths(root, run_id)
     if plan.exists() or record.exists():
         raise ValueError("Run already exists; reuse it instead of overwriting")
     read_json(safe(root, ".delivery/project.json"))
     data = read_json(SKILL / "assets/run.json")
-    data.update({"id": run_id, "title": title})
+    data.update({"id": run_id, "title": title, "scenario": scenario})
+    if scenario == "feature":
+        data["features"] = []
     text = (SKILL / "assets/delivery-plan.md").read_text(encoding="utf-8")
     text = "# " + title + "\n" + text.split("\n", 1)[1]
     write_atomic(plan, text.encode("utf-8"))
@@ -301,6 +309,8 @@ def new_run(root: Path, run_id: str, title: str) -> dict:
 
 def graph_digest(record: dict, root: Path) -> str:
     task_keys = ("id", "title", "paths", "depends_on")
+    if record.get("scenario") == "feature":
+        task_keys += ("feature",)
     check_keys = ("id", "kind", "trigger", "reason", "method", "expected", "failure_blocks")
 
     def definitions(checks: list) -> list:
@@ -311,6 +321,13 @@ def graph_digest(record: dict, root: Path) -> str:
         for t in record["tasks"]], "overall": definitions(record["overall"]["checks"]),
         "followups": [{k: f.get(k) for k in ("id", "goal", "method", "reason", "required_for_scope")}
                       for f in record["followups"]]}
+    # Missing scenario retains historical approval hashes; new runs always declare it.
+    if "scenario" in record:
+        graph["scenario"] = record["scenario"]
+    if record.get("scenario") == "feature":
+        graph["features"] = [{"id": f["id"], "title": f["title"],
+                              "depends_on": f["depends_on"], "checks": definitions(f["checks"])}
+                             for f in record["features"]]
     # Omit empty contracts to preserve approvals made before contract binding existed.
     if record.get("contracts"):
         graph["contracts"] = [{"path": p, "sha256": digest(safe(root, p).read_bytes())}
@@ -322,7 +339,8 @@ def covered(path: str, boundaries: list) -> bool:
     return any(b == "." or path == b or path.startswith(b.rstrip("/") + "/") for b in boundaries)
 
 
-def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
+def guard(root: Path, run_id: str, task_id: str | None = None,
+          feature_ids: list[str] | None = None) -> dict:
     plan, path = run_paths(root, run_id)
     record = read_json(path)
     issues, waiting = [], []
@@ -352,6 +370,11 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
     for key in ("approval", "overall", "handoff"):
         if not isinstance(record.get(key), dict):
             error("TYPE", key, "Expected an object")
+    scenario = record.get("scenario")
+    if "scenario" in record and (not isinstance(scenario, str) or scenario not in SCENARIOS):
+        error("SCENARIO", "scenario", "Expected simple, standard or feature")
+    if scenario != "feature" and record.get("features") not in (None, []):
+        error("FEATURE", "features", "Feature definitions require the feature scenario")
     contracts = record.get("contracts", [])
     if not strings(contracts) or len(contracts) != len(set(contracts)):
         error("CONTRACTS", "contracts", "Expected unique project-relative contract files")
@@ -364,7 +387,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
         return {"record_valid": False, "execution_ready": False, "batch_complete": False,
                 "delivery_ready": False, "issues": issues}
 
-    tasks, checks = {}, {}
+    tasks, checks, features = {}, {}, {}
     overall = record["overall"]
 
     def add_checks(items: object, owner: str) -> None:
@@ -396,6 +419,25 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
             if "failure_blocks" in c and type(c["failure_blocks"]) is not bool:
                 error("CHECK_FIELD", cid, "failure_blocks must be boolean")
 
+    if scenario == "feature":
+        if not isinstance(record.get("features"), list):
+            error("FEATURE", "features", "Expected a Feature array")
+        else:
+            for f in record["features"]:
+                if (not isinstance(f, dict) or not present(f.get("id"))
+                        or not ID.fullmatch(f["id"]) or not present(f.get("title"))):
+                    error("FEATURE", "features", "Feature requires a stable ID and title")
+                    continue
+                fid = f["id"]
+                if fid in features:
+                    error("DUPLICATE", fid, "Duplicate Feature ID")
+                features[fid] = f
+                if not strings(f.get("depends_on")) or len(f["depends_on"]) != len(set(f["depends_on"])):
+                    error("FEATURE", fid, "Expected unique Feature dependencies")
+                add_checks(f.get("checks"), fid)
+    elif scenario in {"simple", "standard"} and len(record["tasks"]) > SCENARIOS[scenario]:
+        error("TASK_LIMIT", "tasks", f"{scenario} allows at most {SCENARIOS[scenario]} tasks in the whole Graph")
+
     for task in record["tasks"]:
         if not isinstance(task, dict) or not present(task.get("id")):
             error("TASK", "tasks", "Task requires an ID")
@@ -404,6 +446,11 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
         if tid in tasks:
             error("DUPLICATE", tid, "Duplicate task ID")
         tasks[tid] = task
+        if scenario == "feature":
+            if not present(task.get("feature")) or task["feature"] not in features:
+                error("FEATURE", tid, "Task must belong to a defined Feature")
+        elif task.get("feature") is not None:
+            error("FEATURE", tid, "Task Feature membership requires the feature scenario")
         if task.get("state") not in STATES or not present(task.get("title")):
             error("TASK", tid, "Invalid task state/title")
         if task.get("state") in {"BLOCKED", "NEED_DECISION", "STOPPED"} and not present(task.get("note")):
@@ -438,6 +485,37 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
     if not issues:
         for tid in tasks:
             visit(tid)
+    feature_ancestors, feature_visiting = {}, set()
+
+    def feature_visit(fid: str) -> set:
+        if fid in feature_visiting:
+            error("FEATURE_CYCLE", fid, "Feature dependency cycle")
+            return set()
+        if fid in feature_ancestors:
+            return feature_ancestors[fid]
+        feature_visiting.add(fid)
+        ancestors = set()
+        for dep in features[fid]["depends_on"]:
+            if dep not in features:
+                error("FEATURE_DEPENDENCY", fid, f"Unknown Feature dependency: {dep}")
+            else:
+                ancestors.add(dep)
+                ancestors.update(feature_visit(dep))
+        feature_visiting.remove(fid)
+        feature_ancestors[fid] = ancestors
+        return ancestors
+
+    if not issues:
+        for fid in features:
+            feature_visit(fid)
+            members = [t for t in tasks.values() if t.get("feature") == fid]
+            if not members or len(members) > SCENARIOS["feature"]:
+                error("TASK_LIMIT", fid, "Each Feature requires 1-30 tasks; completed tasks also count")
+        for tid, t in tasks.items():
+            for dep in t["depends_on"]:
+                provider = tasks[dep].get("feature")
+                if scenario == "feature" and provider != t["feature"] and provider not in feature_ancestors[t["feature"]]:
+                    error("FEATURE_DEPENDENCY", tid, "Cross-Feature task dependency is missing from the Feature graph")
     for f in record["followups"]:
         if not isinstance(f, dict) or f.get("required_for_scope") is not False:
             error("FOLLOWUP", "followups", "Followups must explicitly be outside current required scope")
@@ -451,11 +529,22 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
 
     if task_id is not None and task_id not in tasks:
         raise ValueError(f"Unknown task: {task_id}")
+    if feature_ids is not None:
+        if (scenario != "feature" or not isinstance(feature_ids, list) or not feature_ids
+                or not strings(feature_ids) or len(feature_ids) != len(set(feature_ids))
+                or any(fid not in features for fid in feature_ids)):
+            raise ValueError("Select unique existing Feature IDs from a feature plan")
     baseline = {"plan_sha256": digest(plan.read_bytes()), "graph_sha256": graph_digest(record, root)}
     acceptance_defined = bool(tasks) and all(any(
         c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in t["checks"]) for t in tasks.values())
     acceptance_defined = acceptance_defined and any(
         c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in overall["checks"])
+    acceptance_defined = acceptance_defined and all(any(
+        c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in f["checks"]) for f in features.values())
+    design_ready = scenario != "feature" or bool(contracts)
+    if not design_ready:
+        waiting.append("Bind the architecture and detailed design files in contracts before execution")
+    acceptance_defined = acceptance_defined and design_ready
     if not acceptance_defined:
         waiting.append("Define task and overall required acceptance before execution")
     approval = record["approval"]
@@ -598,9 +687,17 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
         return bool(required) and not unresolved and not optional_fail and all(
             verdicts.get(c["id"]) == "PASS" for c in required)
 
+    feature_members = {fid: [tid for tid, t in tasks.items() if t.get("feature") == fid]
+                       for fid in features}
+    feature_complete = {fid: design_ready and all(tasks[tid]["state"] == "DONE" and tid in done_authorized
+                                and checks_pass(tasks[tid]["checks"]) for tid in members)
+                        and checks_pass(features[fid]["checks"])
+                        for fid, members in feature_members.items()}
     next_tasks = []
     for tid, task in tasks.items():
         deps_done = all(tasks[d]["state"] == "DONE" for d in task["depends_on"])
+        if scenario == "feature":
+            deps_done = deps_done and all(feature_complete[d] for d in features[task["feature"]]["depends_on"])
         if task["state"] == "DONE" and tid not in done_authorized:
             error("DONE_AUTHORIZATION", tid, "DONE requires current or retained execution approval for this baseline")
         if task["state"] == "DONE" and not checks_pass(task["checks"]):
@@ -619,6 +716,34 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
                 and not over_repairs and not out_of_time
                 and task["state"] in {"READY", *ACTIVE}):
             next_tasks.append(tid)
+    feature_order = []
+    if scenario == "feature":
+        selected = set(feature_ids or [])
+
+        def order_feature(fid: str) -> None:
+            if fid in feature_order:
+                return
+            for dep in features[fid]["depends_on"]:
+                if dep in selected:
+                    order_feature(dep)
+            feature_order.append(fid)
+
+        for fid in feature_ids or []:
+            order_feature(fid)
+            if any(tid not in authorized and tasks[tid]["state"] != "DONE"
+                   for tid in feature_members[fid]):
+                error("FEATURE_SELECTION", fid, "Selected Feature contains tasks outside current approval")
+            if any(not feature_complete[d] and d not in selected for d in features[fid]["depends_on"]):
+                error("FEATURE_SELECTION", fid, "Select unfinished prerequisite Features explicitly or wait for completion")
+        current_feature = next((fid for fid in feature_order if not feature_complete[fid]), None)
+        for tid, task in tasks.items():
+            if selected and task["state"] in ACTIVE and task["feature"] != current_feature:
+                error("FEATURE_SELECTION", tid, "Finish or resolve the current Feature before starting another")
+        next_tasks = [tid for tid in next_tasks if tasks[tid]["feature"] == current_feature]
+        if task_id is not None and tasks[task_id]["feature"] not in selected:
+            waiting.append(f"{task_id}: task is outside the selected Features")
+        if not selected:
+            waiting.append("Select one or more approved Features before starting or resuming tasks")
     if any(t["state"] == "DONE" for t in tasks.values()) and not valid_approval:
         waiting.append("Completed tasks need review against the current approved baseline")
     handoff = record["handoff"]
@@ -638,6 +763,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
     accepted = all(present(overall.get(k)) for k in ("accepted_by", "accepted_at", "source"))
     ready = bool(tasks) and all(t["state"] == "DONE" for t in tasks.values())
     ready = ready and checks_pass(overall["checks"]) and accepted and valid_approval and policy_ready
+    ready = ready and design_ready and all(feature_complete.values())
     ready = ready and bool(handoff.get("artifacts")) and bool(handoff.get("docs"))
     ready = ready and knowledge.get("status") in {"UPDATED", "NO_INCREMENT", "DRAFT_READY"}
     if not ready:
@@ -651,6 +777,19 @@ def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
             "batch_complete": bool(batch_complete) and not issues,
             "remaining_tasks": [tid for tid, t in tasks.items() if t["state"] != "DONE"],
             **({"selected_task": task_id} if task_id is not None else {}),
+            **({"selected_features": feature_ids or [], "feature_order": feature_order,
+                "selection_ready": bool(feature_ids) and valid_approval and policy_ready and acceptance_defined and not issues,
+                "selection_complete": bool(feature_ids) and valid_approval and policy_ready and acceptance_defined
+                                      and all(feature_complete[fid] for fid in feature_ids) and not issues,
+                "features": [{"id": fid, "title": f["title"], "tasks": feature_members[fid],
+                              "done": sum(tasks[t]["state"] == "DONE" for t in feature_members[fid]),
+                              "tasks_done": all(tasks[t]["state"] == "DONE" for t in feature_members[fid]),
+                              "complete": bool(feature_complete[fid]) and not issues,
+                              "authorized": valid_approval and policy_ready and not issues and all(
+                                  t in authorized or (tasks[t]["state"] == "DONE" and t in done_authorized)
+                                  for t in feature_members[fid]),
+                              "blocked_by": [d for d in f["depends_on"] if not feature_complete[d]]}
+                             for fid, f in features.items()]} if scenario == "feature" else {}),
             "delivery_ready": bool(ready) and not issues, "baseline": baseline,
             "next_tasks": next_tasks, "check_results": verdicts,
             "followups_pending": [f["id"] for f in record["followups"] if f["status"] != "PASS"],
@@ -669,22 +808,25 @@ def main() -> int:
             p.add_argument("--id", required=True)
         if command == "new":
             p.add_argument("--title", required=True)
+            p.add_argument("--scenario", choices=SCENARIOS, default="standard")
         if command == "guard":
             p.add_argument("--task", help="Check execution readiness of this specific task")
+            p.add_argument("--features", nargs="+", help="Explicitly selected Feature IDs for this invocation")
     args = parser.parse_args()
     try:
         root = args.project.expanduser().resolve(strict=True)
         if not root.is_dir():
             raise ValueError("Project must be an existing directory")
         if args.command == "new":
-            result = new_run(root, args.id, args.title)
+            result = new_run(root, args.id, args.title, args.scenario)
         elif args.command == "guard":
-            result = guard(root, args.id, args.task)
+            result = guard(root, args.id, args.task, args.features)
         else:
             result = {"inspect": inspect, "init": initialize, "check": check}[args.command](root)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         blocked_task = args.command == "guard" and args.task is not None and not result["execution_ready"]
-        return 1 if result.get("issues") or blocked_task else 0
+        blocked_selection = args.command == "guard" and args.features is not None and not result.get("selection_ready")
+        return 1 if result.get("issues") or blocked_task or blocked_selection else 0
     except (OSError, ValueError, KeyError, TypeError, RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "message": str(exc)}, ensure_ascii=False))
         return 2
