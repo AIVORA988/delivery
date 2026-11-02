@@ -33,7 +33,7 @@ delivery 覆盖需求理解、现状调查、方案定版、任务规划、执�
 ### 1. 安装
 
 ```text
-请从 https://github.com/AIVORA988/delivery 安装 delivery Skill 到当前项目，完成初始化，保留已有规则与本地修改。
+请从 https://github.com/AIVORA988/delivery 安装 delivery 到当前项目，部署两个 Skill 并初始化知识库，保留已有规则与本地修改。
 ```
 
 ### 2. 提需求
@@ -51,6 +51,21 @@ delivery 覆盖需求理解、现状调查、方案定版、任务规划、执�
 ```
 
 手工安装与冲突处理见 [START.md](START.md)。
+
+## 两个 Skill 入口
+
+| 入口 | 适用场景 |
+| --- | --- |
+| `$delivery` | 日常研发：按需读取知识，完成需求、方案、审批、执行、验收和增量沉淀 |
+| `$delivery-bootstrap` | 显式触发的存量知识构建：按项目或模块调查源码与已有资料，补齐知识和恢复入口 |
+
+日常只需 `$delivery`。存量项目需要集中梳理知识时，可发送：
+
+```text
+$delivery-bootstrap 梳理当前项目的订单与支付模块，保留已有文档，记录源码依据、未验证范围和继续入口。
+```
+
+Bootstrap 不在安装时自动运行，不修改业务代码，也不是研发前置阶段。两个 Skill 同包部署；具体调用语法和自动发现由宿主支持决定。
 
 ## 运行机制与示例
 
@@ -124,16 +139,38 @@ Guard 只校验记录和所引用文件，不运行项目测试、不认证审�
 ```text
 your-project/
 ├── AGENTS.md                         原有规则保持原样
-├── .agents/skills/delivery/           项目内 Skill、脚本和参考规则
-└── .delivery/
-    ├── project.json                  公共命令、规则与知识位置
-    ├── install.json                  安装摘要与冲突检查
-    └── runs/first-slice/
-        ├── plan.md                   供审批阅读的方案
-        └── record.json               Agent 维护任务、证据与交接
+├── .agents/skills/
+│   ├── delivery/                     日常入口、共享知识规则与 Python 工具
+│   └── delivery-bootstrap/           存量知识构建入口
+├── .delivery/
+│   ├── project.json                  公共命令、规则与 knowledge_paths
+│   ├── install.json                  两个 Skill 的安装摘要
+│   └── runs/first-slice/
+│       ├── plan.md                   供审批阅读的方案
+│       └── record.json               Agent 维护任务、证据与交接
+└── docs/knowledge/
+    ├── README.md                     主题索引、覆盖范围与继续入口
+    ├── project.md                    项目概况与核心约束
+    ├── modules/                      模块规则、接口与数据关系
+    ├── decisions/                    重要决策及适用条件
+    ├── guides/                       运行、配置、测试与操作步骤
+    ├── lessons/                      问题根因、处理与预防
+    └── deliveries/                   有长期参考价值的交付摘要
 ```
 
 方案与运行记录默认使用 `plan.md` 和 `record.json`。已有可靠的计划与记录时可直接遵循 Skill 规则，不强制迁移；孤立排查和微小修复沿用项目轻量流程。内部记录由 Agent 维护，使用者无需填写 JSON、内部编号或摘要。
+
+## 知识沉淀与复用
+
+**初始化入口 → 按需读取 → 方案引用 → 实施更新 → 验收整理 → 下一需求复用。**
+
+- 安装只创建知识 README 和路径登记，上述其他正文与目录按需形成；已有架构、接口和运行文档保持原位，通过索引引用。
+- 新项目确认空库后跳过空文档；有知识时按本次主题读取，并核对当前源码、适用版本和验证边界。索引过期或扫描受限不能直接判空。
+- 方案中说明采用、更新或不适用的关键知识，必要文档更新纳入原任务和审批范围；执行时增量维护，验收时核对一致性、来源和相关链接。
+- 正文保留适用范围、结论或步骤、来源、验证边界和实际更新日期。无增量说明理由，不为每个需求强制生成摘要，不把静态分析或 Mock 当作真实运行。
+- 下次相关需求再次检索和核实；中断构建通过索引保留的覆盖路径、依据和待补入口恢复。
+
+新项目仍需验证首个可运行闭环，旧项目仍需检查兼容、不变量与受影响路径回归。知识文档辅助调查，不替代审批、测试和整体验收。具体规则见 [knowledge.md](skills/delivery/references/knowledge.md)。
 
 ## 文档与示例
 
@@ -142,6 +179,8 @@ your-project/
 | [START.md](START.md) | 第一次安装和接入项目 |
 | [使用手册](docs/usage.md) | 规划、批准、执行、验收与恢复 |
 | [Skill 主入口](skills/delivery/SKILL.md) | Agent 的七阶段职责和按需路由 |
+| [知识构建入口](skills/delivery-bootstrap/SKILL.md) | 存量项目按范围分析与中断恢复 |
+| [知识规则](skills/delivery/references/knowledge.md) | 目录、初始化、按需读取、沉淀与复用 |
 | [项目接入](skills/delivery/references/setup.md) | 安装、升级、配置和故障处理 |
 | [记录契约](skills/delivery/references/record.md) | 内部状态、审批摘要与证据校验 |
 | [本地交付示例](examples/local-delivery.md) | 可运行场景与输出解释 |

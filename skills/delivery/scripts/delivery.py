@@ -15,7 +15,8 @@ import tempfile
 VERSION = "1.0.0"
 WORKFLOW = "V1.0"
 SKILL = Path(__file__).resolve().parents[1]
-INSTALL = ".agents/skills/delivery"
+COMPANION = "delivery-bootstrap"
+KNOWLEDGE = "docs/knowledge"
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 STATES = {"PENDING", "READY", "RUNNING", "VERIFYING", "REPAIRING", "DONE",
           "BLOCKED", "NEED_DECISION", "STOPPED"}
@@ -88,15 +89,17 @@ def write_atomic(path: Path, data: bytes) -> None:
             os.unlink(name)
 
 
-def payload() -> dict[str, bytes]:
+def payload(folder: Path = SKILL) -> dict[str, bytes]:
+    if linked(folder) or not (folder / "SKILL.md").is_file():
+        raise ValueError(f"Incomplete distribution: {folder.name}/SKILL.md is required; install both Skills")
     files = {}
-    for path in sorted(SKILL.rglob("*")):
+    for path in sorted(folder.rglob("*")):
         if "__pycache__" in path.parts or path.suffix == ".pyc":
             continue
         if linked(path):
             raise ValueError("The source Skill contains a link/reparse point")
         if path.is_file():
-            files[path.relative_to(SKILL).as_posix()] = path.read_bytes()
+            files[path.relative_to(folder).as_posix()] = path.read_bytes()
     return files
 
 
@@ -122,14 +125,14 @@ def inspect(root: Path) -> dict:
 
 
 def initialize(root: Path) -> dict:
-    source = payload()
+    sources = {"delivery": payload(), COMPANION: payload(SKILL.parent / COMPANION)}
     config_path = safe(root, ".delivery/project.json")
     receipt_path = safe(root, ".delivery/install.json")
-    previous = read_json(receipt_path).get("files", {}) if receipt_path.exists() else {}
-    if not isinstance(previous, dict):
+    previous = read_json(receipt_path) if receipt_path.exists() else {}
+    companions = previous.get("companions", {})
+    if not isinstance(companions, dict) or set(companions) - {COMPANION}:
         raise ValueError("Invalid install receipt; review it before upgrading")
-    if set(previous) - set(source):
-        raise ValueError("Upgrade removes managed files; review the old installation before continuing")
+    manifests = {"delivery": previous.get("files", {}), COMPANION: companions.get(COMPANION, {})}
     config = read_json(config_path) if config_path.exists() else {
         "schema_version": 1, "workflow": WORKFLOW, "commands": {}, "knowledge_paths": [],
         "baseline": "NOT_VERIFIED",
@@ -137,31 +140,104 @@ def initialize(root: Path) -> dict:
     }
     if config.get("schema_version") != 1 or config.get("workflow") != WORKFLOW:
         raise ValueError("Existing project configuration has a different schema/workflow")
+    paths = config.get("knowledge_paths", [])
+    if not isinstance(paths, list) or any(not present(p) for p in paths):
+        raise ValueError("knowledge_paths must be a list of project-relative paths")
+    for relative in paths:
+        safe(root, relative)
+    config["knowledge_paths"] = list(dict.fromkeys([*paths, KNOWLEDGE]))
+    entry = safe(root, f"{KNOWLEDGE}/README.md")
+    if entry.exists() and not entry.is_file():
+        raise ValueError("Knowledge entry is not a file")
     writes, unchanged = {}, []
-    for relative, data in source.items():
-        target = safe(root, f"{INSTALL}/{relative}")
-        if target.exists():
-            if not target.is_file():
-                raise ValueError(f"Managed target is not a file: {relative}")
-            old = target.read_bytes()
-            if old == data:
-                unchanged.append(relative)
-                continue
-            if digest(old) != previous.get(relative):
-                raise ValueError(f"Local edit/conflict; nothing written: {relative}")
-        writes[target] = data
+    for name, source in sources.items():
+        manifest = manifests[name]
+        if not isinstance(manifest, dict):
+            raise ValueError("Invalid install receipt; review it before upgrading")
+        if set(manifest) - set(source):
+            raise ValueError("Upgrade removes managed files; review the old installation before continuing")
+        for relative, data in source.items():
+            target = safe(root, f".agents/skills/{name}/{relative}")
+            if target.exists():
+                if not target.is_file():
+                    raise ValueError(f"Managed target is not a file: {name}/{relative}")
+                old = target.read_bytes()
+                if old == data:
+                    unchanged.append(f"{name}/{relative}")
+                    continue
+                if digest(old) != manifest.get(relative):
+                    raise ValueError(f"Local edit/conflict; nothing written: {name}/{relative}")
+            writes[target] = data
     # Preflight the whole operation before writing any project file.
-    if not config_path.exists():
+    if not entry.exists():
+        writes[entry] = (SKILL / "assets/knowledge-index.md").read_bytes()
+    if not config_path.exists() or read_json(config_path) != config:
         writes[config_path] = packed(config)
     receipt = {"schema_version": 1, "package_version": VERSION, "workflow": WORKFLOW,
-               "files": {p: digest(b) for p, b in source.items()}}
+               "files": {p: digest(b) for p, b in sources["delivery"].items()},
+               "companions": {COMPANION: {p: digest(b) for p, b in sources[COMPANION].items()}}}
     if not receipt_path.exists() or read_json(receipt_path) != receipt:
         writes[receipt_path] = packed(receipt)
     for target, data in writes.items():
         write_atomic(target, data)
     return {"status": "CONFIGURED", "written": len(writes), "unchanged": len(unchanged),
             "runtime_verified": False, "rules_modified": False,
-            "note": "Project rules preserved. Configure commands and approve limits before execution."}
+            "skills": list(sources), "knowledge_entry": f"{KNOWLEDGE}/README.md",
+            "note": "Knowledge entry initialized; project rules preserved. Configure commands and approve limits before execution; no business analysis performed."}
+
+
+def knowledge_context(root: Path, paths: list) -> dict:
+    """Bounded document discovery, not retrieval or a judgment of knowledge quality."""
+    candidates, unavailable = [], []
+    visited, truncated = 0, False
+    template = (SKILL / "assets/knowledge-index.md").read_bytes().strip()
+
+    def scan(path: Path, depth: int) -> None:
+        nonlocal visited, truncated
+        visited += 1
+        if visited > 1000:
+            truncated = True
+            return
+        try:
+            if linked(path):
+                unavailable.append(path.relative_to(root).as_posix())
+            elif path.is_file():
+                if path.suffix.lower() not in {".md", ".mdx", ".rst", ".txt"} or not path.stat().st_size:
+                    return
+                relative = path.relative_to(root).as_posix()
+                if relative == f"{KNOWLEDGE}/README.md" and path.stat().st_size <= len(template) + 1024:
+                    if path.read_bytes().strip() == template:
+                        return
+                if relative not in candidates and len(candidates) < 20:
+                    candidates.append(relative)
+            elif path.is_dir():
+                if depth >= 6:
+                    truncated = True
+                    return
+                with os.scandir(path) as entries:
+                    for item in entries:
+                        if item.name.startswith(".") or item.name in EXCLUDED:
+                            visited += 1
+                            if visited > 1000:
+                                truncated = True
+                                break
+                            continue
+                        scan(Path(item.path), depth + 1)
+                        if visited > 1000:
+                            break
+            else:
+                unavailable.append(path.relative_to(root).as_posix())
+        except OSError:
+            unavailable.append(path.relative_to(root).as_posix())
+
+    for relative in dict.fromkeys(paths):
+        scan(safe(root, relative), 0)
+        if visited > 1000:
+            break
+    return {"entry": f"{KNOWLEDGE}/README.md", "paths": paths, "candidates": candidates,
+            "empty": False if candidates else None if truncated or unavailable else True,
+            "truncated": truncated, "unavailable": unavailable,
+            "note": "Names and the default entry only; candidates are not verified knowledge."}
 
 
 def check(root: Path) -> dict:
@@ -172,15 +248,30 @@ def check(root: Path) -> dict:
         issues.append("Project schema/workflow mismatch")
     if not isinstance(config.get("commands"), dict) or not isinstance(config.get("policy"), dict):
         issues.append("Project commands/policy must be objects")
-    files = receipt.get("files")
-    if not isinstance(files, dict) or "SKILL.md" not in files or "scripts/delivery.py" not in files:
-        issues.append("Invalid install manifest")
-    else:
+    companions = receipt.get("companions", {})
+    if not isinstance(companions, dict) or set(companions) - {COMPANION}:
+        issues.append("Invalid companion manifest")
+        companions = {}
+    manifests = {"delivery": receipt.get("files"), COMPANION: companions.get(COMPANION)}
+    for name, files in manifests.items():
+        if (not isinstance(files, dict) or "SKILL.md" not in files
+                or (name == "delivery" and "scripts/delivery.py" not in files)):
+            issues.append(f"Incomplete {name} installation; run init from the complete distribution")
+            continue
         for relative, expected in files.items():
-            path = safe(root, f"{INSTALL}/{relative}")
+            path = safe(root, f".agents/skills/{name}/{relative}")
             if not path.is_file() or digest(path.read_bytes()) != expected:
-                issues.append(f"Missing or locally changed Skill file: {relative}")
+                issues.append(f"Missing or locally changed Skill file: {name}/{relative}")
+    paths = config.get("knowledge_paths", [])
+    if not isinstance(paths, list) or any(not present(p) for p in paths):
+        raise ValueError("knowledge_paths must be a list of project-relative paths")
+    if KNOWLEDGE not in paths or not safe(root, f"{KNOWLEDGE}/README.md").is_file():
+        issues.append("Knowledge entry missing or unregistered; run init")
+    for relative in paths:
+        safe(root, relative)
+    context = knowledge_context(root, paths)
     return {"status": "CONFIGURED" if not issues else "CONFLICT", "issues": issues,
+            "knowledge": context,
             "runtime_verified": False, "note": "Static installation check only."}
 
 

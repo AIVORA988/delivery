@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -190,6 +191,175 @@ class DeliveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             d.new_run(self.root, "sample", "Overwrite")
         self.assertEqual(before, (plan.read_bytes(), record.read_bytes()))
+
+    def test_init_installs_exactly_two_skills_and_only_the_knowledge_entry(self):
+        before = (self.root / "src.py").read_bytes()
+        result = d.initialize(self.root)
+        installed = self.root / ".agents/skills"
+        self.assertEqual({p.name for p in installed.iterdir()}, {"delivery", "delivery-bootstrap"})
+        self.assertEqual(set(result["skills"]), {"delivery", "delivery-bootstrap"})
+        self.assertTrue((installed / "delivery-bootstrap/SKILL.md").is_file())
+        self.assertTrue((installed / "delivery/references/knowledge.md").is_file())
+        knowledge = self.root / "docs/knowledge"
+        self.assertEqual([p.name for p in knowledge.iterdir()], ["README.md"])
+        checked = d.check(self.root)
+        self.assertEqual(checked["status"], "CONFIGURED")
+        self.assertIs(checked["knowledge"]["empty"], True)
+        self.assertEqual(checked["knowledge"]["candidates"], [])
+        self.assertEqual((self.root / "src.py").read_bytes(), before)
+
+    def test_existing_knowledge_and_custom_config_survive_init(self):
+        d.initialize(self.root)
+        entry = self.root / "docs/knowledge/README.md"
+        entry.write_bytes(b"# Existing navigation\r\nKeep human annotations.\r\n")
+        existing = self.root / "docs/api.md"
+        existing.write_bytes(b"# Existing API\nSource: src.py\n")
+        path = self.root / ".delivery/project.json"
+        config = d.read_json(path)
+        config.update({"knowledge_paths": ["docs/api.md", "docs/api.md"], "team_setting": {"keep": True}})
+        path.write_bytes(d.packed(config))
+        snapshot = (entry.read_bytes(), existing.read_bytes())
+        d.initialize(self.root)
+        self.assertEqual((entry.read_bytes(), existing.read_bytes()), snapshot)
+        config = d.read_json(path)
+        self.assertEqual(config["knowledge_paths"], ["docs/api.md", "docs/knowledge"])
+        self.assertEqual(config["team_setting"], {"keep": True})
+        self.assertEqual(d.initialize(self.root)["written"], 0)
+        checked = d.check(self.root)
+        self.assertIs(checked["knowledge"]["empty"], False)
+        self.assertIn("docs/api.md", checked["knowledge"]["candidates"])
+
+    def test_knowledge_conflict_aborts_before_installing_either_skill(self):
+        (self.root / "docs").mkdir()
+        (self.root / "docs/knowledge").write_text("Do not replace this file", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            d.initialize(self.root)
+        self.assertFalse((self.root / ".agents").exists())
+        self.assertFalse((self.root / ".delivery").exists())
+
+    def test_companion_conflict_aborts_before_creating_missing_knowledge(self):
+        d.initialize(self.root)
+        entry = self.root / "docs/knowledge/README.md"
+        entry.unlink()
+        companion = self.root / ".agents/skills/delivery-bootstrap/SKILL.md"
+        companion.write_text("Human edit", encoding="utf-8")
+        before = (self.root / ".delivery/install.json").read_bytes()
+        with self.assertRaisesRegex(ValueError, "Local edit/conflict"):
+            d.initialize(self.root)
+        self.assertFalse(entry.exists())
+        self.assertEqual((self.root / ".delivery/install.json").read_bytes(), before)
+
+    def test_legacy_install_upgrades_without_changing_approved_run(self):
+        self.complete()
+        run_before = (self.plan.read_bytes(), self.record_path.read_bytes())
+        receipt_path = self.root / ".delivery/install.json"
+        receipt = d.read_json(receipt_path)
+        del receipt["companions"]
+        old_skill = self.root / ".agents/skills/delivery/SKILL.md"
+        old_skill.write_text("Previous managed Skill\n", encoding="utf-8")
+        receipt["files"]["SKILL.md"] = d.digest(old_skill.read_bytes())
+        receipt_path.write_bytes(d.packed(receipt))
+        shutil.rmtree(self.root / ".agents/skills/delivery-bootstrap")
+        config_path = self.root / ".delivery/project.json"
+        config = d.read_json(config_path)
+        config.pop("knowledge_paths")
+        config_path.write_bytes(d.packed(config))
+        d.initialize(self.root)
+        self.assertEqual(d.check(self.root)["status"], "CONFIGURED")
+        self.assertEqual((self.plan.read_bytes(), self.record_path.read_bytes()), run_before)
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_installed_pair_can_initialize_another_project(self):
+        d.initialize(self.root)
+        target = self.root / "another-project"
+        target.mkdir()
+        script = self.root / ".agents/skills/delivery/scripts/delivery.py"
+        result = subprocess.run([sys.executable, "-X", "utf8", str(script), "init", "--project", str(target)],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(d.check(target)["status"], "CONFIGURED")
+
+    def test_missing_companion_source_aborts_without_partial_install(self):
+        d.initialize(self.root)
+        shutil.rmtree(self.root / ".agents/skills/delivery-bootstrap")
+        target = self.root / "unconfigured-project"
+        target.mkdir()
+        script = self.root / ".agents/skills/delivery/scripts/delivery.py"
+        result = subprocess.run([sys.executable, "-X", "utf8", str(script), "init", "--project", str(target)],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Incomplete distribution", result.stdout)
+        self.assertEqual(list(target.iterdir()), [])
+
+    def test_empty_index_does_not_hide_existing_body_or_readme_content(self):
+        d.initialize(self.root)
+        body = self.root / "docs/knowledge/modules/orders.md"
+        body.parent.mkdir()
+        body.write_text("# Orders\nCurrent static rule; source: src.py\n", encoding="utf-8")
+        result = d.check(self.root)["knowledge"]
+        self.assertIs(result["empty"], False)
+        self.assertIn("docs/knowledge/modules/orders.md", result["candidates"])
+        body.unlink()
+        entry = self.root / "docs/knowledge/README.md"
+        entry.write_text("# Existing knowledge in the entry itself\n", encoding="utf-8")
+        self.assertIs(d.check(self.root)["knowledge"]["empty"], False)
+
+    def test_truncated_or_unavailable_knowledge_is_not_reported_empty(self):
+        d.initialize(self.root)
+        deep = self.root / "docs/knowledge/a/b/c/d/e/f/g"
+        deep.mkdir(parents=True)
+        context = d.check(self.root)["knowledge"]
+        self.assertTrue(context["truncated"])
+        self.assertIsNone(context["empty"])
+
+        context = d.knowledge_context(self.root, ["missing-documents"])
+        self.assertIsNone(context["empty"])
+        self.assertEqual(context["unavailable"], ["missing-documents"])
+
+    def test_invalid_knowledge_paths_do_not_reset_config_or_install(self):
+        for paths in (None, "docs", ["../outside"], ["C:/outside"], [""]):
+            with self.subTest(paths=paths):
+                config = self.root / ".delivery/project.json"
+                config.parent.mkdir(exist_ok=True)
+                raw = d.packed({"schema_version": 1, "workflow": "V1.0", "knowledge_paths": paths})
+                config.write_bytes(raw)
+                with self.assertRaises(ValueError):
+                    d.initialize(self.root)
+                self.assertEqual(config.read_bytes(), raw)
+                self.assertFalse((self.root / ".agents").exists())
+
+    def test_knowledge_scan_budget_includes_ignored_entries(self):
+        d.initialize(self.root)
+        folder = self.root / "docs/knowledge"
+        for number in range(1001):
+            (folder / f".ignored-{number}").touch()
+        context = d.check(self.root)["knowledge"]
+        self.assertTrue(context["truncated"])
+        self.assertIsNone(context["empty"])
+        config_path = self.root / ".delivery/project.json"
+        config = d.read_json(config_path)
+        config["knowledge_paths"].append("../outside")
+        config_path.write_bytes(d.packed(config))
+        with self.assertRaisesRegex(ValueError, "Unsafe project-relative"):
+            d.check(self.root)
+
+    def test_knowledge_updates_preserve_baseline_but_changed_evidence_still_expires(self):
+        self.complete()
+        baseline = d.guard(self.root, "sample")["baseline"]
+        entry = self.root / "docs/knowledge/README.md"
+        entry.write_text("# A genuine documentation update\nSource: src.py\n", encoding="utf-8")
+        self.record["handoff"]["knowledge"] = {"status": "UPDATED", "refs": ["docs/knowledge/README.md"]}
+        self.save()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["baseline"], baseline)
+        self.assertTrue(result["delivery_ready"])
+        self.assertEqual(d.check(self.root)["status"], "CONFIGURED")
+        self.record["evidence"][0]["subjects"].append(
+            {"path": "docs/knowledge/README.md", "sha256": d.digest(entry.read_bytes())})
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        entry.write_text("# Checked documentation changed again\n", encoding="utf-8")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
 
     def test_approval_is_required_for_execution(self):
         self.start()

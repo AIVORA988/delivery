@@ -1,0 +1,6 @@
+interface:
+  display_name: "delivery-bootstrap"
+  short_description: "按范围分析存量项目源码与文档，构建有来源、可恢复并供后续研发复用的项目知识"
+  default_prompt: "使用 $delivery-bootstrap 梳理当前项目指定模块的知识，保留已有文档，说明来源、覆盖范围和继续入口。"
+policy:
+  allow_implicit_invocation: false

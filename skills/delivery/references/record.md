@@ -70,4 +70,6 @@ DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查
 
 knowledge.status 为 PENDING / UPDATED / NO_INCREMENT / DRAFT_READY；UPDATED / DRAFT_READY 要有实际稿件引用，NO_INCREMENT 要有理由。知识库不可写时允许交接更新稿，后续同步不默认阻断本期。
 
+目录及读写约定见 [knowledge.md](knowledge.md)。初始化空索引不算业务知识增量；记录引用不能证明 Agent 已正确理解正文。知识进度写 record，不向已批准 plan 追加；文档被 subjects 引用时仍受原有摘要失效规则约束，不因知识维护豁免。
+
 后续专项必须显式 `required_for_scope: false`，记录条件与恢复入口；其 NOT_VERIFIED / FAIL 不自动改变本期完成。已约定本期必需的项目不能直接挪到 followups：先复核范围和验收，更新批准基线，再评估受影响证据。

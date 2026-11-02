@@ -25,8 +25,8 @@ Use a tool that supports Agent Skills in your target project and send these thre
 ### 1. Install
 
 ```text
-Install the delivery Skill from https://github.com/AIVORA988/delivery
-into the current project and initialize it. Preserve existing rules and local changes.
+Install delivery from https://github.com/AIVORA988/delivery into the current project,
+including both Skills and the knowledge entry. Preserve existing rules and local changes.
 ```
 
 ### 2. Describe the requirement
@@ -48,6 +48,22 @@ checks pending when their prerequisites are unavailable.
 ```
 
 See [START.md](START.md) for manual installation and conflict handling.
+
+## Two Skill entry points
+
+| Skill | Purpose |
+| --- | --- |
+| `$delivery` | Daily development, including targeted knowledge retrieval, approval, execution, acceptance and incremental updates |
+| `$delivery-bootstrap` | Explicit, scoped knowledge construction for an existing project, with source references and resumable coverage |
+
+Daily work only needs `$delivery`. When an existing project needs a dedicated knowledge pass:
+
+```text
+$delivery-bootstrap Document the order and payment modules. Preserve existing documentation,
+cite sources, distinguish unverified behavior and record where to continue.
+```
+
+Bootstrap does not run during installation, modify application code, or add a development stage. Both Skills ship together; discovery and invocation syntax depend on the host.
 
 ## Workflow and example
 
@@ -109,6 +125,29 @@ When all required task checks, overall acceptance, handoff materials and the agr
 ## Project integration and implementation boundaries
 
 The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing project rules and local changes are preserved; existing plans and records may be reused without mandatory migration. Isolated investigations and minor fixes follow the project's lightweight process.
+
+## Knowledge capture and reuse
+
+**Initialize → Read → Reference → Update → Review → Reuse.**
+
+Installation deploys both Skills and creates only `docs/knowledge/README.md`, registering the path in `knowledge_paths`. Other files are created when useful:
+
+```text
+docs/knowledge/
+├── README.md       Topic index, coverage and continuation points
+├── project.md      Project overview and constraints
+├── modules/        Module rules, interfaces and data relationships
+├── decisions/      Significant decisions and applicability
+├── guides/         Development, operation and verification procedures
+├── lessons/        Reusable diagnoses, fixes and prevention
+└── deliveries/     Delivery summaries with lasting reference value
+```
+
+Existing architecture, API and operations documents remain in place and are linked rather than duplicated. A confirmed empty knowledge base is skipped. Otherwise, agents retrieve relevant material, verify it against current sources, and explain what the plan adopts, updates or rejects. An outdated index or incomplete scan does not establish emptiness.
+
+Required documentation changes belong to the approved task scope. Implementation updates affected topics; acceptance checks consistency, sources, limitations and relevant links. Capture scope, conclusions or steps, provenance, verification limits and the actual update date. No increment requires a reason, not a redundant document. Future requests retrieve and revalidate the knowledge; interrupted construction resumes from recorded coverage.
+
+New projects still require a runnable first slice and applicable verification. Existing projects still require compatibility, invariants and regression checks. Knowledge supports these checks; it does not replace approval, evidence or overall acceptance. See the shared [knowledge rules](skills/delivery/references/knowledge.md) (Chinese).
 
 The package supports direct Skill installation and a project-local setup script, with optional plugin manifests. It includes no independent background scheduler, complete programmatic workflow engine, operating-system permission sandbox, approval identity authentication or automatic production release capability.
 
