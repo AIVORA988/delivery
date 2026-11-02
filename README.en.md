@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/banner.svg" alt="delivery" width="100%"></p>
+<p align="center"><img src="docs/banner.svg" alt="delivery — Plan. Approve. Deliver." width="100%"></p>
 
 # delivery
 
@@ -6,168 +6,134 @@
 
 [中文](README.md) · [MIT](LICENSE) · [CI](https://github.com/AIVORA988/delivery/actions/workflows/ci.yml)
 
-delivery supports incremental development in existing systems and new projects. It establishes requirements and design baselines before implementation, coordinates work through human approval and task dependencies, and records verification evidence for acceptance and knowledge capture. It does not depend on a specific agent, model, toolchain, MCP server or cloud service.
+delivery connects requirements and design, human approval, task execution, verification evidence and knowledge reuse. It supports existing systems and new projects without requiring a specific agent, model, toolchain or MCP server.
 
-Agents advance the workflow and perform development work. The Agent Skill defines behavioral rules; the Python Guard performs deterministic validation of records and referenced files. Users define goals, approve scope, make key decisions and accept deliverables.
+Users set goals, approve plans and accept deliverables. Agents investigate, design and implement. Skills define behavioral rules; the Python Guard validates records, file versions and authorization scope.
 
-Workflow V1.0, package 1.0.0, Python 3.10+, standard library only.
-
-## Workflow architecture
-
-[![delivery V1.0 workflow architecture](docs/architecture.png)](docs/architecture.png)
-
-[View the full-resolution diagram (Chinese)](docs/architecture.png)
+[Quick start](#quick-start) · [Two development paths](#two-development-paths) · [Knowledge reuse](#knowledge-capture-and-reuse) · [Documentation and validation](#documentation-and-validation)
 
 ## Quick start
 
-Use a tool that supports Agent Skills in your target project. Every development request is planned and approved before implementation. Small changes use concise plans rather than skipping approval.
+Use an Agent Skills-compatible tool in the target project. The Python tools require **Python 3.10+** and only the standard library. Skill discovery and invocation depend on the host.
 
 ### 1. Install
 
 ```text
-Install delivery from https://github.com/AIVORA988/delivery into the current project,
-including all five Skills and the knowledge entry. Preserve existing rules, local changes and run records.
+Install all five Skills from https://github.com/AIVORA988/delivery into this project.
+Initialize the knowledge entry; preserve existing rules, local changes and run records.
 ```
+
+The agent follows `inspect → init → check`, installs the Skills in `.agents/skills/`, creates a missing `docs/knowledge/README.md` and registers its path. Installation does not analyze the codebase or run application tests. `CONFIGURED` means setup checks passed. [Manual installation, ZIP installation and upgrades](START.md) (Chinese)
 
 ### 2. Describe the requirement
 
 | Scenario | Example prompt | Task limit |
 | --- | --- | --- |
-| Small fix or feature change | `$delivery Fix the order-status filter.` | 3 per run |
+| Small bug fix or low-risk feature change | `$delivery Fix the order-status filter.` | 3 per run |
 | Complex existing-system change | `$delivery Add split shipments to this store.` | 15 per run |
 | New medium or large system | `$delivery-feature Plan the store from the architecture and detailed design in docs/design, organized by Feature.` | 30 per Feature |
 
-The agent investigates, defines the plan, dependencies and acceptance criteria, then waits for human approval. Complex changes require applicable business, API, data, failure, concurrency, consistency and compatibility design. New medium or large systems require architecture and detailed-design documents. Split oversized scopes or Features into reasonable boundaries instead of hiding independent work inside oversized tasks.
+The ordinary entry chooses design depth based on risk. Payment, authorization, migrations, public contracts and shared consistency rules need appropriate design even for small patches. New medium or large projects require architecture and detailed-design documents. Limits include completed tasks across approval batches; split oversized scopes into reasonable boundaries rather than combining unrelated work.
 
 ### 3. Approve and execute
 
-Send this after reviewing and approving the plan:
+The agent presents the plan, task dependencies, acceptance criteria, permitted operations and finite execution limits. After review:
 
 ```text
-I approve the current plan and task list. Execute within the agreed scope and limits.
+I approve the current plan and task list. Begin within the agreed scope and execution limits.
 ```
 
-Request revisions when needed, then review the updated plan. Once approval permits implementation, the agent uses the corresponding execution Skill. Approval without permission to start is retained without executing. Ordinary plans run a Task Loop; Feature plans first let the developer select one or more approved Features, then advance in dependency order with a Task Loop inside each. Tasks do not need repeated approval.
+Request revisions when needed, then review the updated plan. Once approval permits implementation, the agent uses the appropriate execution Skill without asking for approval on every task. Planning-only, deferred-start and module-specific instructions remain binding. Invoking an execution Skill is not approval.
 
-Use `$delivery-run` or `$delivery-feature-run` to resume with the same plan, record and valid authorization. See [START.md](START.md) for installation and upgrades and [Usage](docs/usage.md) for a complete interaction (Chinese).
+## Two development paths
 
-## Skill responsibilities
+[![Two development paths sharing human approval, acceptance and knowledge reuse (Chinese)](docs/diagrams/daily-dual-path.svg)](docs/diagrams/daily-dual-path.svg)
 
-| Skill | Purpose |
+| Skill | Responsibility |
 | --- | --- |
-| [`$delivery`](skills/delivery/SKILL.md) | Plan ordinary and existing-system requirements, define tasks and obtain approval |
-| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from architecture and detailed design, defining Features, tasks, contracts and dependencies |
-| [`$delivery-run`](skills/delivery-run/SKILL.md) | Execute or resume an approved ordinary plan through the shared Task Loop |
-| [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Select one or more Features, advance Features in order and run the Task Loop within each |
-| [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | Explicit, scoped knowledge construction for an existing project, with source references and resumable coverage |
+| [`$delivery`](skills/delivery/SKILL.md) | Plan ordinary and existing-system requirements; prepare tasks and approval materials |
+| [`$delivery-run`](skills/delivery-run/SKILL.md) | Execute or resume an approved ordinary plan through the dependency-aware Task Loop |
+| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from architecture and detailed design, with Features, interface contracts and both dependency graphs |
+| [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Confirm one or more approved Features; complete their tasks and module acceptance in order |
+| [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | Build existing-project knowledge on explicit request; no application edits or prerequisite development stage |
 
-When an existing project needs a dedicated knowledge pass:
+Both paths share seven stages: **Mission → Explore → Contract → Graph → Loop → Acceptance → Knowledge**. These cover requirements, investigation, design finalization, task planning, execution and verification, overall acceptance and delivery, and documentation and knowledge capture. The sole **Approval Gate sits between Graph and Loop**. Material plan, task or bound design / API contract changes return to that gate for review.
+
+Detailed diagrams (Chinese): [Architecture](docs/architecture.png) · [Approval](docs/diagrams/01-approval-gate.png) · [Execution and repair](docs/diagrams/02-execution-loop.png) · [Acceptance and evidence](docs/diagrams/03-acceptance-evidence.png) · [Design and Harness boundaries](docs/design.md)
+
+## Execution loop and recovery
+
+Ordinary plans follow task dependencies: **implement → verify → classify failures → repair within authorization → reverify**. A task becomes `DONE` only with valid required evidence. Missing conditions, decision conflicts, exhausted limits and unknown external outcomes are recorded with recovery details, rather than retried blindly.
+
+Feature projects first select one or more approved modules. Unfinished prerequisites must be explicitly included or already have passed module acceptance; selection never expands scope automatically. Execution is serial by default: finish the current Feature's tasks and module checks before advancing. Hosts without native multi-select use a numbered conversation list. Cancellation or no response starts no work.
+
+[![Feature delivery batches: Task Loop, module checks, handoff and overall acceptance (Chinese)](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
+
+Resume an ordinary plan through the original execution entry:
 
 ```text
-$delivery-bootstrap Document the order and payment modules. Preserve existing documentation,
-cite sources, distinguish unverified behavior and record where to continue.
+$delivery-run Continue the approved plan. First check the workspace, evidence and cumulative usage.
 ```
 
-All five Skills ship together and share the plan, record, Guard and knowledge rules. Bootstrap does not run during installation, modify application code or add a development stage. Skills guide the current agent; they do not launch a scheduler or additional agents. Discovery and invocation depend on the host.
+For a Feature plan, invoke `$delivery-feature-run` and select the current scope again. Both reuse the original `plan.md` / `record.json` and valid authorization, retain approval history and cumulative limits, and skip still-valid DONE tasks. **Selected-scope completion, approval-batch completion and overall delivery are separate decisions.** [Interaction and recovery details](docs/usage.md) (Chinese)
 
-## Feature selection and execution batches
+## Acceptance and Guard boundaries
 
-After overall approval, `$delivery-feature-run` shows each Feature's name, task progress, module acceptance, authorization and unmet dependencies. Developers select one or more Features; hosts without a native multi-select control use a numbered conversation list. Cancellation or no response starts no work.
-
-Unfinished prerequisites must be included explicitly or already have passed module acceptance. Missing prerequisites prompt a selection change rather than an automatic scope expansion. Complete the current Feature's tasks and module acceptance before moving to the next. Save actual progress, evidence, cumulative usage and continuation points, update relevant knowledge, and resume without rerunning still-valid DONE tasks.
-
-[![Feature selection, Task Loop and overall acceptance](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
-
-Task limits count the whole Graph or each Feature, including completed tasks, rather than the current approval batch. Payment, authorization, migrations, public contract changes and shared rules retain appropriate design and validation depth regardless of patch size. Planning-only, deferred execution and module-specific instructions remain binding.
-
-Selection only narrows existing authorization. Unapproved work, stale baselines and unmet prerequisites cannot start. Selected-scope completion, approval-batch completion and overall delivery are separate decisions. Changes to bound design or API files require review of approval and evidence; old PASS results do not automatically carry over. See the [record contract](skills/delivery/references/record.md) for internal commands and result fields (Chinese).
-
-## Workflow and example
-
-The seven stages are **Mission → Explore → Contract → Graph → Loop → Acceptance → Knowledge**. A separate **Approval Gate** sits between Graph and Loop.
-
-| Term | Responsibility |
+| Area | Current implementation |
 | --- | --- |
-| Mission | Requirements understanding |
-| Explore | Current-state investigation |
-| Contract | Design finalization |
-| Graph | Task planning |
-| Approval Gate | Human approval of the baseline, scope and permitted operations |
-| Loop | Execution and verification, failure classification, repair, reverification and recovery |
-| Acceptance | Overall acceptance and delivery |
-| Knowledge | Documentation and knowledge capture |
+| Approval and dependencies | Validate plan / Graph baselines, task / Feature dependencies, approved tasks and paths, and recorded cumulative repair / time limits; retain valid historical authorization for DONE tasks |
+| Actual change scope | New Git-backed runs capture the initial workspace and check staged, unstaged, untracked and committed changes. Out-of-scope changes or an unavailable recorded workspace block readiness and delivery. Legacy records and non-Git projects require manual review |
+| Evidence | Check the current baseline, method, source / artifact and raw-report versions. File changes invalidate affected PASS results; historical evidence is retained |
+| Final receipt | Generate an acceptance fingerprint only after all tasks are legitimately DONE, required task / module / overall checks pass, and documentation and knowledge handoff are ready. Actual acceptance must cover that version |
 
-The approved baseline includes requirements, design, tasks and acceptance methods. Agents continue within the approved batch while respecting dependencies, scope and recorded limits. Material changes require review of the affected parts. Harness capabilities provide cross-cutting support for project rules, tools, environments, permissions, quality checks, evidence and recovery.
+Approved acceptance methods may include source review, builds, tests, local execution, Mock or live environments. Conclusions apply only to verified coverage. Explicitly approved follow-up validation remains `NOT_VERIFIED`; required current-scope checks cannot be silently deferred. Separate module passes do not replace complete business-path, failure and regression checks.
+
+Guard is a read-only deterministic validator. It does not run application tests, measure time, intercept commands or authenticate reviewers / recipients. Git checks cannot attribute changes among contributors or detect reverted transient writes, ignored untracked files or operations outside the project. Plan / record semantic consistency, report authenticity and business impact still need review. There is no background scheduler, complete workflow engine or permission sandbox. Installation and structural checks are not business acceptance. [Record contract](skills/delivery/references/record.md) · [Security](SECURITY.md) (Chinese)
+
+## Knowledge capture and reuse
+
+**Initialize → retrieve and check against source → use in the plan → update during implementation → review at acceptance → reuse in the next request.**
+
+```text
+.delivery/runs/<run-id>/
+├── plan.md               Reviewable plan
+└── record.json           Tasks, approvals, evidence, usage and recovery
+docs/knowledge/
+├── README.md             Topic index, coverage and continuation points (initialized on install)
+├── project.md            Project overview and constraints
+├── modules/              Module rules, interfaces and data relationships
+├── decisions/            Decisions and applicability
+├── guides/               Development, operation and verification procedures
+├── lessons/              Root causes, fixes and prevention
+└── deliveries/           Delivery summaries with lasting reference value
+```
+
+Only the knowledge entry is initialized; other files and directories are created when useful. Skip confirmed empty knowledge, otherwise retrieve relevant topics and check them against current source and applicable versions. Maintain existing documents in place and link them from the index. Required updates belong to approved tasks and progress with implementation, without waiting for approved follow-up live validation. Preserve sources, verification limits and unknowns; explain when there is no increment instead of creating redundant documents. Agents maintain internal records; users need not edit JSON or hashes.
+
+For a dedicated knowledge pass on an existing project:
+
+```text
+$delivery-bootstrap Document the order and payment modules. Preserve existing docs,
+cite source evidence, distinguish unverified behavior and record where to continue.
+```
+
+New projects still need a runnable first slice; existing projects need compatibility and affected-path regression checks. Knowledge does not replace approval or verification. [Knowledge structure and reuse rules](skills/delivery/references/knowledge.md) (Chinese)
+
+## Documentation and validation
+
+| Document | Contents |
+| --- | --- |
+| [Installation](START.md) · [Usage](docs/usage.md) | Setup, upgrades, planning, approval, execution and recovery |
+| [Design](docs/design.md) · [Record contract](skills/delivery/references/record.md) | Responsibilities, baselines, Guard and historical compatibility |
+| [Local example](examples/local-delivery.md) · [Validation](docs/validation.md) | Runnable demonstration, tests, CI and coverage limits |
+
+Reference documents and shared diagrams are in Chinese. From this repository root:
 
 ```bash
 python examples/try_delivery.py
 python -m unittest discover -s tests -v
 ```
 
-The isolated fixture runs real local checks, demonstrates a blocked unapproved draft, current-scope completion with an unverified external followup, then invalidates evidence after source changes. Fixture approvals are synthetic, not real project acceptance.
+The temporary fixture runs two real local checks. It demonstrates blocked unapproved execution, current-scope completion and evidence invalidation after a source change. Approvals and receipts are synthetic; no external business system is contacted.
 
-## Workflow details
-
-Click a diagram to view the full-resolution original (Chinese). See [Usage](docs/usage.md) for the corresponding steps.
-
-### 01 · Approval and authorization gate
-
-[![01 · Approval and authorization gate](docs/diagrams/01-approval-gate.png)](docs/diagrams/01-approval-gate.png)
-
-### 02 · Execution and repair loop
-
-[![02 · Execution and repair loop](docs/diagrams/02-execution-loop.png)](docs/diagrams/02-execution-loop.png)
-
-### 03 · Acceptance and evidence loop
-
-[![03 · Acceptance and evidence loop](docs/diagrams/03-acceptance-evidence.png)](docs/diagrams/03-acceptance-evidence.png)
-
-## Core validation mechanisms
-
-- **Approval baseline consistency**: approval is bound to plan and task-definition hashes. Material changes invalidate the baseline; routine progress updates do not.
-- **Scenario and Feature constraints**: new runs enforce 3 / 15 / 30 tasks, with the last limit applied per Feature. Membership, dependencies and module acceptance are bound to approval; selection cannot expand authorization.
-- **Task dependencies and authorization scope**: check acyclic dependencies, approved batches and path boundaries. DONE tasks require valid current or historical approval coverage.
-- **Actual change scope**: new Git-backed runs capture the initial workspace and check subsequent staged, unstaged, untracked and committed changes against authorized task paths. Out-of-scope changes block execution readiness and delivery. Legacy records and projects without a Git baseline require manual review.
-- **Evidence validity**: source, artifact and raw-report fingerprints must match. Changed files invalidate the current result; historical evidence is retained.
-- **Bounded repair and recovery**: validate recorded repair counts and elapsed time against limits, retaining cumulative usage and recovery details across interruptions. Unconfigured limits do not imply unlimited execution.
-- **Separate task and overall acceptance**: an acceptance fingerprint is available only after all tasks are legitimately DONE, required checks pass, and documentation and knowledge handoff are ready. It binds the receipt to the approval baseline, verification evidence and delivered files. Actual acceptance must cover that version; changes do not carry an old receipt forward automatically.
-- **Current delivery scope and follow-up validation**: explicitly approved follow-ups remain separate, while documentation and knowledge are updated as work progresses.
-
-The read-only Guard validates records, referenced files and Git change scope. It does not run project tests, intercept writes, measure elapsed time, authenticate reviewers, establish report authenticity, or enforce an operating-system sandbox. Git checks cover cumulative changes within the project, not reverted transient writes, ignored untracked files or attribution among multiple contributors. Agents and the agreed recipients remain responsible for operation authorization, impact analysis and business acceptance under project rules. Installation success means CONFIGURED, not application correctness.
-
-## Acceptance scope and evidence validity
-
-Current-scope acceptance may use approved local, Mock, test-environment, source-review or demonstration methods. Conclusions apply only to the coverage actually verified; tasks need not pass through every environment tier. Required live-environment checks must pass within the current scope and cannot be silently deferred.
-
-When all required task checks, overall acceptance, handoff materials and the agreed receipt are complete, the current delivery scope may be declared complete. Approved follow-up validation retains its own NOT_VERIFIED status and recovery entry. Documentation and knowledge evolve with actual decisions, implementation and executed checks; subsequent live results supplement those records.
-
-## Project integration and implementation boundaries
-
-The default files are `plan.md` for the reviewable plan and `record.json` for task state, approvals, evidence and handoff records. Agents maintain the internal records. Existing rules and local changes are preserved. Historical records retain their original hashes, approvals and counting rules without mandatory migration; validation fixes also apply to old records. New runs must declare a scenario. Small changes still need a concise plan and approval. Read-only investigation does not authorize implementation.
-
-## Knowledge capture and reuse
-
-**Initialize → Read → Reference → Update → Review → Reuse.**
-
-Installation deploys all five Skills and creates only `docs/knowledge/README.md`, registering the path in `knowledge_paths`. Other files are created when useful:
-
-```text
-docs/knowledge/
-├── README.md       Topic index, coverage and continuation points
-├── project.md      Project overview and constraints
-├── modules/        Module rules, interfaces and data relationships
-├── decisions/      Significant decisions and applicability
-├── guides/         Development, operation and verification procedures
-├── lessons/        Reusable diagnoses, fixes and prevention
-└── deliveries/     Delivery summaries with lasting reference value
-```
-
-Existing architecture, API and operations documents remain in place and are linked rather than duplicated. A confirmed empty knowledge base is skipped. Otherwise, agents retrieve relevant material, verify it against current sources, and explain what the plan adopts, updates or rejects. An outdated index or incomplete scan does not establish emptiness.
-
-Required documentation changes belong to the approved task scope. Implementation updates affected topics; acceptance checks consistency, sources, limitations and relevant links. Capture scope, conclusions or steps, provenance, verification limits and the actual update date. No increment requires a reason, not a redundant document. Future requests retrieve and revalidate the knowledge; interrupted construction resumes from recorded coverage.
-
-New projects still require a runnable first slice and applicable verification. Existing projects still require compatibility, invariants and regression checks. Knowledge supports these checks; it does not replace approval, evidence or overall acceptance. See the shared [knowledge rules](skills/delivery/references/knowledge.md) (Chinese).
-
-The package supports direct Skill installation and a project-local setup script, with optional plugin manifests. It includes no independent background scheduler, complete programmatic workflow engine, operating-system permission sandbox, approval identity authentication or automatic production release capability.
-
-[Workflow](skills/delivery/SKILL.md) · [Usage](docs/usage.md) · [Record contract](skills/delivery/references/record.md) · [Validation](docs/validation.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+Workflow **V1.0** · Package **1.0.0** · [MIT](LICENSE) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)

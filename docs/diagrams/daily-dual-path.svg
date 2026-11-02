@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+<title id="title">日常研发双路径 / Two development paths</title>
+<desc id="desc">Ordinary requirements use delivery then delivery-run; new medium or large projects use delivery-feature with architecture and detailed design, then explicitly select approved Features in delivery-feature-run. Both share one approval gate, overall acceptance and ongoing knowledge capture. Selection does not expand authorization.</desc>
+<defs>
+  <linearGradient id="header"><stop stop-color="#0b1f35"/><stop offset="1" stop-color="#145969"/></linearGradient>
+  <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f3f8ff"/><stop offset="1" stop-color="#e8f4f7"/></linearGradient>
+  <pattern id="grid" width="55" height="55" patternUnits="userSpaceOnUse"><path d="M55 0H0V55" fill="none" stroke="#b8d5ee" stroke-opacity=".22"/></pattern>
+  <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="m1 1 5 2.5L1 6" fill="none" stroke="#4985be" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif; fill: #153d5c; }
+    .title { font-size: 40px; font-weight: 700; fill: #f1f8ff; }
+    .subtitle { font-size: 22px; fill: #b8d2e1; }
+    .heading { font-size: 30px; font-weight: 700; }
+    .skill { font-size: 30px; font-weight: 700; fill: #0e768e; }
+    .body { font-size: 22px; fill: #315a7b; }
+    .muted { font-size: 21px; fill: #61829f; }
+    .center { text-anchor: middle; }
+    .small { font-size: 17px; font-weight: 600; fill: #118d91; }
+    .card { fill: #fff; stroke: #b2d7ee; stroke-width: 1.5; }
+    .edge { fill: none; stroke: #4985be; stroke-width: 3; marker-end: url(#arrow); stroke-linejoin: round; stroke-linecap: round; }
+    .purple { fill: #6855c3; }
+    .decision { font-size: 23px; font-weight: 700; text-anchor: middle; }
+  </style>
+</defs>
+<rect width="1600" height="1040" fill="url(#paper)"/>
+<rect width="1600" height="1040" fill="url(#grid)"/>
+<path d="M0 0H1600V142H0Z" fill="url(#header)"/>
+<g stroke="#5182a1" opacity=".14"><path d="M1080 35H1600M1080 95H1600M1140 0V142M1240 0V142M1340 0V142M1440 0V142M1540 0V142"/></g>
+<rect x="60" y="39" width="9" height="66" rx="4.5" fill="#42d4c8"/>
+<rect x="1360" y="50" width="174" height="44" rx="22" fill="#206072"/>
+<text x="1447" y="79" class="center" style="font-size:20px;font-weight:700;fill:#7ff0df">V1.0 · DELIVERY</text>
+<text x="94" y="74" class="title">日常研发双路径</text>
+<text x="94" y="106" class="subtitle">按需求类型选择入口 · 共用审批关口 · 共享验收与知识沉淀</text>
+<rect x="684" y="170" width="232" height="54" rx="27" fill="#dbf1fa"/>
+<text x="800" y="205" class="body center" style="font-weight:700">需求输入 / Request</text>
+<path class="edge" d="M800 224V257H425V291"/>
+<path class="edge" d="M800 257H1175V291"/>
+<rect class="card" x="80" y="298" width="690" height="220" rx="20"/>
+<rect x="80" y="298" width="10" height="220" rx="5" fill="#18b5b3"/>
+<rect x="830" y="298" width="690" height="220" rx="20" fill="#fff" stroke="#d1c9fb" stroke-width="1.5"/>
+<rect x="830" y="298" width="10" height="220" rx="5" fill="#8e7ae7"/>
+<rect x="109" y="321" width="58" height="38" rx="19" fill="#dff8f5"/><text x="138" y="347" class="small center">A</text>
+<text x="184" y="351" class="heading">存量项目 · 日常开发</text>
+<text x="114" y="391" class="muted">规划入口</text><text x="238" y="391" class="skill">$delivery</text>
+<text x="114" y="435" class="body">简单 Bug / 低风险调整：≤ 3 个任务</text>
+<text x="114" y="472" class="body">复杂存量需求：≤ 15 个任务</text>
+<rect x="551" y="457" width="166" height="38" rx="19" fill="#ecf8fa"/><text x="634" y="482" class="small center">按风险设计</text>
+<rect x="859" y="321" width="58" height="38" rx="19" fill="#f0ecff"/><text x="888" y="347" class="small center purple">B</text>
+<text x="934" y="351" class="heading">全新中大型项目</text>
+<text x="864" y="391" class="muted">规划入口</text><text x="988" y="391" class="skill purple">$delivery-feature</text>
+<text x="864" y="435" class="body">输入：已确认的架构与详细设计</text>
+<text x="864" y="472" class="body">按 Feature 拆分：每项 ≤ 30 个任务</text>
+<rect x="1335" y="457" width="142" height="38" rx="19" fill="#f0ecff"/><text x="1406" y="482" class="small center purple">先定契约</text>
+<path class="edge" d="M425 518V564"/><path class="edge" d="M1175 518V564"/>
+<rect x="251" y="571" width="1098" height="84" rx="20" fill="#edf1ff" stroke="#adb9ff" stroke-width="2"/>
+<rect x="283" y="587" width="52" height="52" rx="16" fill="#7861d5"/><text x="309" y="623" class="heading center" style="fill:#fff">✓</text>
+<text x="357" y="604" class="heading" style="fill:#38336d">唯一人工审批关口</text>
+<text x="357" y="636" class="body" style="fill:#626390">批准方案 / Graph、允许范围、验收与执行限制</text>
+<rect x="1110" y="594" width="193" height="38" rx="19" fill="#e1dbff"/><text x="1206" y="620" class="small center purple">选择不扩大授权</text>
+<path class="edge" d="M425 655V696"/><path class="edge" d="M1175 655V696"/>
+<rect class="card" x="80" y="703" width="690" height="181" rx="20"/>
+<rect x="80" y="703" width="10" height="181" rx="5" fill="#18b5b3"/>
+<text x="114" y="746" class="skill">$delivery-run</text>
+<text x="114" y="783" class="body" style="font-weight:700">按依赖执行任务 Task Loop</text>
+<text x="114" y="820" class="muted">实施 → 验证 → 必要修复 / 重验 → DONE</text>
+<rect x="114" y="836" width="274" height="33" rx="16" fill="#e2f7f3"/><text x="251" y="859" class="small center">恢复复用原 plan / record</text>
+<rect x="830" y="703" width="690" height="181" rx="20" fill="#fff" stroke="#d1c9fb" stroke-width="1.5"/>
+<rect x="830" y="703" width="10" height="181" rx="5" fill="#8e7ae7"/>
+<text x="864" y="746" class="skill purple">$delivery-feature-run</text>
+<text x="864" y="783" class="body">选择已批准 Feature，按依赖推进</text>
+<text x="864" y="820" class="muted">子任务 Loop → 模块验收 → 下一个所选模块</text>
+<rect x="864" y="836" width="361" height="33" rx="16" fill="#eeeaff"/><text x="1044" y="859" class="small center purple">本轮所选完成 ≠ 本期整体完成</text>
+<path class="edge" d="M425 884V922"/><path class="edge" d="M1175 884V922"/>
+<text x="445" y="910" class="small" style="font-weight:400;fill:#61829f">全部任务完成</text>
+<text x="1195" y="910" class="small" style="font-weight:400;fill:#61829f">全部本期 Feature 完成</text>
+<rect class="card" x="251" y="930" width="1098" height="76" rx="18"/>
+<rect x="274" y="948" width="222" height="42" rx="21" fill="#ddf3ff"/><text x="385" y="977" class="body center" style="font-weight:700;fill:#1873a1">整体验收 / 交付</text>
+<path class="edge" d="M516 968H611"/>
+<rect x="632" y="948" width="234" height="42" rx="21" fill="#def7ee"/><text x="749" y="977" class="body center" style="font-weight:700;fill:#108876">知识沉淀 / 复用</text>
+<text x="906" y="977" class="muted">证据与接收关联当前版本</text>
+<text x="800" y="1030" class="center" style="font-size:16px;fill:#7190a4">Guard 核对记录与范围 · 知识随实施持续更新 · 基线变更回原关口</text>
+</svg>
