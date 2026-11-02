@@ -3,6 +3,7 @@
   "id": "draft",
   "title": "待定义需求",
   "scope": "待明确本期目标与非目标",
+  "contracts": [],
   "tasks": [],
   "approval": {
     "decision": "PENDING",

@@ -20,7 +20,7 @@ Workflow V1.0, package 1.0.0, Python 3.10+, standard library only.
 
 ## Quick start
 
-Use a tool that supports Agent Skills in your target project and send these three prompts in order:
+Use a tool that supports Agent Skills in your target project. This example requires detailed design and approval. After installation, independent low-risk fixes can be requested directly; the agent selects the appropriate path.
 
 ### 1. Install
 
@@ -43,8 +43,8 @@ Send this after reviewing and approving the plan:
 
 ```text
 I approve the current plan and task scope. Use the delivery Skill to implement it, verify the result,
-perform overall acceptance and update the usage instructions. Keep any live-payment
-checks pending when their prerequisites are unavailable.
+perform overall acceptance and update the usage instructions. Keep live-payment checks
+pending only when they have explicitly been approved as follow-up validation.
 ```
 
 See [START.md](START.md) for manual installation and conflict handling.
@@ -64,6 +64,24 @@ cite sources, distinguish unverified behavior and record where to continue.
 ```
 
 Bootstrap does not run during installation, modify application code, or add a development stage. Both Skills ship together; discovery and invocation syntax depend on the host.
+
+## Small fixes, detailed design and module batches
+
+Use `$delivery` for daily work. The agent selects a path based on risk:
+
+- **Independent, low-risk fixes and internal API adjustments:** investigate, implement and run focused checks plus relevant regression tests under the user's actual fix authorization. Separate plans, run records and knowledge articles are not mandatory.
+- **Complex or high-risk requirements:** complete the applicable business, interface, data, failure, concurrency, consistency, compatibility and acceptance design before approval and implementation.
+- **Cross-module work:** use one design and Graph across calls, with producer/consumer contracts, dependencies, retained approval batches and a final integration task.
+
+The lightweight path compresses the seven responsibilities and reuses explicit authorization; it does not bypass project rules or an existing standard run. Payment, authorization, migrations, public contract changes and shared business rules require risk review regardless of patch size. Requests limited to planning or one module remain binding.
+
+After installation, send the prompt that matches your task, for example:
+
+- **Small fix:** `$delivery Fix pagination not resetting when a filter changes. Preserve ordinary paging and run the relevant regression checks.`
+- **Detailed design:** `$delivery Add multi-warehouse stock reservations and cancellation releases to this store. First prepare an implementable design, task plan and acceptance criteria. Wait for approval before implementation.`
+- **Module batch:** `$delivery Continue the existing stock reservation run. Implement only the approved inventory module, reuse the design, contracts and records, verify it and hand it off. Do not proceed to the order module.`
+
+Optional `record.contracts` binds stable external design or API files to the existing baseline. Content changes invalidate approval and evidence. Guard's `--task` checks a specific task; `batch_complete` describes the current approved batch, while `delivery_ready` still requires overall acceptance. These are record checks, not runtime interception. See [Usage](docs/usage.md) for short prompts (Chinese).
 
 ## Workflow and example
 

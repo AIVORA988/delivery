@@ -40,18 +40,19 @@ Agent 根据真实 README / 构建配置补充 `.delivery/project.json` 的 comm
 python .agents/skills/delivery/scripts/delivery.py new --project . --id first-slice --title "首个业务闭环"
 ```
 
-生成 `.delivery/runs/first-slice/plan.md` 和 `record.json`，均为草稿。重复 ID 会拒绝覆盖。前者供审批阅读，后者由 Agent 维护任务、审批、证据及交接。已有需求继续使用同一记录，不因换会话重新初始化。
+标准路径生成 `.delivery/runs/first-slice/plan.md` 和 `record.json`，均为草稿。重复 ID 会拒绝覆盖。前者供审批阅读，后者由 Agent 维护任务、审批、证据及交接。已有需求继续使用同一记录，不因换会话或按模块分批重新初始化；独立低风险修复不强制创建本记录。
 
 进入 Loop、重要重验、恢复与交付前，Agent 读取 [record.md](record.md) 并执行：
 
 ```bash
 python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-slice
+python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-slice --task T01
 ```
 
-`record_valid` 只表示记录自洽；`execution_ready` 表示存在满足已登记审批及依赖的活动任务；`delivery_ready` 表示本期记录门槛齐备。三者都不验证业务语义、审批身份或报告真实性。用户无需手工运行此命令或编辑内部字段。
+不带 --task 用于审批材料和整体验收；带 --task 用于具体任务开始 / 恢复前校验。`record_valid` 只表示记录自洽；`execution_ready` 在指定任务时仅表示该任务就绪，否则表示存在可执行任务；`batch_complete` 表示当前批准批次完成；`delivery_ready` 表示本期整体记录门槛齐备。它们都不验证业务语义、审批身份或报告真实性。用户无需手工运行命令或编辑内部字段。
 
 ## 退出与冲突
 
-脚本退出码：0 表示检查/操作正常，包括合法草稿尚未就绪；1 表示 Guard 或安装检查发现矛盾；2 表示输入、路径、解析或 I/O 错误。全部输出 JSON，供宿主读取。不要只凭退出码 0 宣称验收通过。
+脚本退出码：0 表示检查/操作正常，包括不指定任务时合法草稿尚未就绪；1 表示 Guard 或安装检查发现矛盾，或 --task 所查任务未就绪；2 表示输入、路径、解析或 I/O 错误。全部输出 JSON，供宿主读取。不要只凭退出码 0 宣称验收通过。
 
 本地安装修改会使 check 返回 CONFLICT；先比较用户变更与上次安装摘要，再决定合并。不要删除用户记录或重置累计消耗。卸载时先备份 `.delivery` 需求记录，只移除确认归该安装管理的两个 Skill 文件，保留项目知识正文；脚本不提供递归自动删除。

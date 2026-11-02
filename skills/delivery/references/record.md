@@ -8,11 +8,14 @@
 
 批准后，计划只因实质设计变更修改；进度、检查、累计消耗和交接更新写入 record。Guard 对计划字节与 Graph 定义分别计算 SHA-256。任务状态、用量、证据和后续专项进度不改变 Graph 摘要，改任务范围、依赖或验收定义会使原审批过期。
 
+仅标准路径需要本记录；轻量独立修复可按主 Skill 保留简短定位、实际检查与交接，不为获得 Guard 布尔值创建全套记录。
+
 ## 结构
 
 | 字段 | 最低内容 |
 | --- | --- |
 | schema_version / id / title / scope | 固定整数 1；需求 ID、标题、本期目标和边界 |
+| contracts（可选） | 参与审批的稳定设计 / 接口文件的项目相对路径数组；省略或空数组沿用原基线算法 |
 | tasks | id、title、paths、depends_on、state、repairs、used_minutes、checks；异常任务补 note |
 | checks | 全局唯一 id，kind，method，expected；条件项补 trigger / reason |
 | approval | decision、reviewer、at、source、plan_sha256、graph_sha256、tasks、paths、operations、limits |
@@ -23,6 +26,12 @@
 | handoff | artifacts、docs、knowledge、resume |
 
 路径使用项目相对路径和 `/`，不允许越界、绝对路径、符号链接或 Windows reparse point。批准路径可用 `.` 表示当前项目；限制应与实际需求相称。Guard 不捕获操作系统级写入，Agent 仍须在每次行动前遵守授权。
+
+### 外部设计与接口契约
+
+公共约定可直接写 plan，不强制另建契约文件。引用现有文件作为审批依据时登记 `contracts`，例如 `["docs/api/orders.md"]`；路径必须唯一、存在且是文件，不能引用本需求的可变 record.json。Guard 读取实际文件内容计算摘要并纳入 Graph，不能以手填哈希声明其未变更。契约路径或内容改变，当前 / 历史审批和旧证据均不能证明新基线成立。
+
+数组顺序不影响摘要；不登记契约的历史记录及空数组保持旧摘要不变。任务进度和普通知识更新仍不改变 Graph。只登记稳定的规范性输入，不登记待生成产物或实施中持续更新的说明，执行对象由 evidence.subjects 绑定。Guard 不自动发现所有契约文件、传递依赖或判断语义兼容，登记范围与变更影响仍由 Agent 分析。
 
 ### 任务与验收
 
@@ -65,6 +74,12 @@ subjects 绑定本次检查的源码、配置或产物；报告记录实际命�
 摘要只能发现所引用文件发生变化，无法证明记录未被伪造或覆盖所有相关行为。变更影响分析仍须核对调用方、数据、外部依赖和回归范围。
 
 ### 本期完成与后续
+
+`guard --project <项目> --id <原需求ID> --task T02` 只读检查指定任务的执行前提。`next_tasks` 仍列出所有候选，`selected_task` 标明所查任务，`execution_ready` 仅当该任务在候选中且无问题时为 true；未授权、依赖未满足、到限、PENDING、DONE 或阻塞任务均不能放行。退出 0 表示该任务可执行，1 表示未就绪或记录有问题，未知 ID 为输入错误（退出 2）。正常但未获授权的任务无需被标记为记录错误。
+
+无 --task 时保持原语义：execution_ready 表示至少有一项可执行，合法草稿可退出 0。不能将全局结果用于任意 Task ID，也不能将退出 0 等同于审批通过。
+
+`batch_complete` 是派生结果：当前审批及有限规则有效、批准任务非空、该批次全部 DONE 且必需证据通过、无记录问题；不要求其余模块或 overall 已完成。`remaining_tasks` 列出原 Graph 中尚未 DONE 的任务。分批切换沿用同一 run 和基线，历史快照规则不变；本批次完成时保存 handoff.resume，最终集成与整体验收仍决定 delivery_ready。
 
 DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查通过且证据有效。未经授权的 DONE 产生 DONE_AUTHORIZATION 问题并阻止交付。全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
 

@@ -299,7 +299,7 @@ def new_run(root: Path, run_id: str, title: str) -> dict:
             "record": record.relative_to(root).as_posix(), "approved": False}
 
 
-def graph_digest(record: dict) -> str:
+def graph_digest(record: dict, root: Path) -> str:
     task_keys = ("id", "title", "paths", "depends_on")
     check_keys = ("id", "kind", "trigger", "reason", "method", "expected", "failure_blocks")
 
@@ -311,6 +311,10 @@ def graph_digest(record: dict) -> str:
         for t in record["tasks"]], "overall": definitions(record["overall"]["checks"]),
         "followups": [{k: f.get(k) for k in ("id", "goal", "method", "reason", "required_for_scope")}
                       for f in record["followups"]]}
+    # Omit empty contracts to preserve approvals made before contract binding existed.
+    if record.get("contracts"):
+        graph["contracts"] = [{"path": p, "sha256": digest(safe(root, p).read_bytes())}
+                              for p in sorted(record["contracts"])]
     return digest(json.dumps(graph, sort_keys=True, ensure_ascii=False).encode("utf-8"))
 
 
@@ -318,7 +322,7 @@ def covered(path: str, boundaries: list) -> bool:
     return any(b == "." or path == b or path.startswith(b.rstrip("/") + "/") for b in boundaries)
 
 
-def guard(root: Path, run_id: str) -> dict:
+def guard(root: Path, run_id: str, task_id: str | None = None) -> dict:
     plan, path = run_paths(root, run_id)
     record = read_json(path)
     issues, waiting = [], []
@@ -348,8 +352,17 @@ def guard(root: Path, run_id: str) -> dict:
     for key in ("approval", "overall", "handoff"):
         if not isinstance(record.get(key), dict):
             error("TYPE", key, "Expected an object")
+    contracts = record.get("contracts", [])
+    if not strings(contracts) or len(contracts) != len(set(contracts)):
+        error("CONTRACTS", "contracts", "Expected unique project-relative contract files")
+    else:
+        for ref in contracts:
+            target = safe(root, ref)
+            if target == path or not target.is_file():
+                error("CONTRACTS", "contracts", "Contract must exist and cannot be the mutable run record")
     if issues:
-        return {"record_valid": False, "execution_ready": False, "delivery_ready": False, "issues": issues}
+        return {"record_valid": False, "execution_ready": False, "batch_complete": False,
+                "delivery_ready": False, "issues": issues}
 
     tasks, checks = {}, {}
     overall = record["overall"]
@@ -433,9 +446,12 @@ def guard(root: Path, run_id: str) -> dict:
         elif f.get("status") not in {"NOT_VERIFIED", "PASS", "FAIL"}:
             error("FOLLOWUP", f["id"], "Invalid followup status")
     if issues:
-        return {"record_valid": False, "execution_ready": False, "delivery_ready": False, "issues": issues}
+        return {"record_valid": False, "execution_ready": False, "batch_complete": False,
+                "delivery_ready": False, "issues": issues}
 
-    baseline = {"plan_sha256": digest(plan.read_bytes()), "graph_sha256": graph_digest(record)}
+    if task_id is not None and task_id not in tasks:
+        raise ValueError(f"Unknown task: {task_id}")
+    baseline = {"plan_sha256": digest(plan.read_bytes()), "graph_sha256": graph_digest(record, root)}
     acceptance_defined = bool(tasks) and all(any(
         c["kind"] in {"REQUIRED", "CONDITIONAL"} for c in t["checks"]) for t in tasks.values())
     acceptance_defined = acceptance_defined and any(
@@ -626,7 +642,15 @@ def guard(root: Path, run_id: str) -> dict:
     ready = ready and knowledge.get("status") in {"UPDATED", "NO_INCREMENT", "DRAFT_READY"}
     if not ready:
         waiting.append("Current-scope tasks, overall acceptance, receipt or handoff not complete")
-    return {"record_valid": not issues, "execution_ready": bool(next_tasks) and not issues,
+    batch_complete = valid_approval and policy_ready and bool(authorized) and all(
+        tasks[tid]["state"] == "DONE" and checks_pass(tasks[tid]["checks"]) for tid in authorized)
+    executable = bool(next_tasks) if task_id is None else task_id in next_tasks
+    if task_id is not None and not executable:
+        waiting.append(f"{task_id}: selected task is not executable in the current approved batch")
+    return {"record_valid": not issues, "execution_ready": executable and not issues,
+            "batch_complete": bool(batch_complete) and not issues,
+            "remaining_tasks": [tid for tid, t in tasks.items() if t["state"] != "DONE"],
+            **({"selected_task": task_id} if task_id is not None else {}),
             "delivery_ready": bool(ready) and not issues, "baseline": baseline,
             "next_tasks": next_tasks, "check_results": verdicts,
             "followups_pending": [f["id"] for f in record["followups"] if f["status"] != "PASS"],
@@ -645,6 +669,8 @@ def main() -> int:
             p.add_argument("--id", required=True)
         if command == "new":
             p.add_argument("--title", required=True)
+        if command == "guard":
+            p.add_argument("--task", help="Check execution readiness of this specific task")
     args = parser.parse_args()
     try:
         root = args.project.expanduser().resolve(strict=True)
@@ -653,11 +679,12 @@ def main() -> int:
         if args.command == "new":
             result = new_run(root, args.id, args.title)
         elif args.command == "guard":
-            result = guard(root, args.id)
+            result = guard(root, args.id, args.task)
         else:
             result = {"inspect": inspect, "init": initialize, "check": check}[args.command](root)
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 1 if result.get("issues") else 0
+        blocked_task = args.command == "guard" and args.task is not None and not result["execution_ready"]
+        return 1 if result.get("issues") or blocked_task else 0
     except (OSError, ValueError, KeyError, TypeError, RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "message": str(exc)}, ensure_ascii=False))
         return 2

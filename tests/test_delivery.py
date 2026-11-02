@@ -710,6 +710,186 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(result["check_results"]["C1"], "FAIL")
         self.assertFalse(result["delivery_ready"])
 
+    def test_legacy_graph_approval_digest_is_preserved(self):
+        self.start()
+        self.record.pop("contracts", None)
+        self.save()
+        legacy = "6aeaf198e33754ff38ab6354b8a5284b15e399fdba22ab1712e4a99907f205af"
+        self.assertEqual(d.guard(self.root, "sample")["baseline"]["graph_sha256"], legacy)
+        self.record["contracts"] = []
+        self.save()
+        self.assertEqual(d.guard(self.root, "sample")["baseline"]["graph_sha256"], legacy)
+        self.approve()
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+
+    def test_bound_contract_change_invalidates_execution_and_historical_done(self):
+        self.start_two_tasks()
+        contract = self.root / "api.md"
+        contract.write_text("GET /orders returns total in cents\n", encoding="utf-8")
+        self.record["contracts"] = ["api.md"]
+        self.approve(["T01"])
+        self.finish_task("T01")
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.record["tasks"][1]["state"] = "READY"
+        self.approve(["T02"])
+        self.assertTrue(d.guard(self.root, "sample", "T02")["execution_ready"])
+        baseline = d.guard(self.root, "sample")["baseline"]
+        contract.write_text("GET /orders returns total in yuan\n", encoding="utf-8")
+        stale = d.guard(self.root, "sample", "T02")
+        self.assertNotEqual(stale["baseline"], baseline)
+        self.assertFalse(stale["execution_ready"])
+        self.assertFalse(stale["batch_complete"])
+        self.assertFalse(stale["delivery_ready"])
+        self.assertIn("DONE_AUTHORIZATION", self.codes(stale))
+        self.assertIn("FALSE_DONE", self.codes(stale))
+        self.assertEqual(stale["check_results"], {})
+        self.approve(["T02"])
+        self.assertFalse(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.assertIn("DONE_AUTHORIZATION", self.codes(d.guard(self.root, "sample")))
+        self.record["tasks"][0].update({"state": "VERIFYING", "repairs": 1, "used_minutes": 17})
+        self.record["tasks"][1]["state"] = "PENDING"
+        self.approve(["T01", "T02"])
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.finish_task("T01")
+        self.record["tasks"][1]["state"] = "READY"
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.finish_task("T02")
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        retained = d.read_json(self.record_path)
+        self.assertEqual((retained["tasks"][0]["repairs"], retained["tasks"][0]["used_minutes"]), (1, 17))
+        self.assertEqual(len(retained["evidence"]), 4)
+
+    def test_contract_change_invalidates_completed_delivery(self):
+        self.start()
+        contract = self.root / "api.md"
+        contract.write_text("Stable API contract", encoding="utf-8")
+        self.record["contracts"] = ["api.md"]
+        self.approve()
+        self.finish_task("T01")
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        contract.write_text("Changed API contract", encoding="utf-8")
+        result = d.guard(self.root, "sample")
+        self.assertFalse(result["delivery_ready"])
+        self.assertFalse(result["batch_complete"])
+
+    def test_contract_order_and_unrelated_docs_do_not_invalidate_approval(self):
+        self.start()
+        for name in ("api.md", "design.md"):
+            (self.root / name).write_text(name, encoding="utf-8")
+        self.record["contracts"] = ["api.md", "design.md"]
+        self.approve()
+        baseline = d.guard(self.root, "sample")["baseline"]
+        self.record["contracts"].reverse()
+        self.save()
+        (self.root / "README.md").write_text("Unrelated usage clarification", encoding="utf-8")
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["baseline"], baseline)
+        self.assertTrue(result["execution_ready"])
+        self.record["contracts"] = ["api.md"]
+        self.save()
+        self.assertFalse(d.guard(self.root, "sample")["execution_ready"])
+
+    def test_missing_malformed_and_self_referential_contracts_fail_closed(self):
+        self.start()
+        for refs in (None, "README.md", [1], ["missing.md"], ["README.md", "README.md"],
+                     [".delivery/runs/sample/record.json"], ["docs"]):
+            with self.subTest(refs=refs):
+                self.record["contracts"] = refs
+                self.save()
+                before = self.record_path.read_bytes()
+                result = d.guard(self.root, "sample")
+                self.assertIn("CONTRACTS", self.codes(result))
+                self.assertFalse(result["execution_ready"])
+                self.assertFalse(result["delivery_ready"])
+                self.assertEqual(self.record_path.read_bytes(), before)
+        for ref in ("../outside.md", "C:/outside.md", "a/../README.md"):
+            self.record["contracts"] = [ref]
+            self.save()
+            with self.subTest(ref=ref), self.assertRaises(ValueError):
+                d.guard(self.root, "sample")
+
+    def test_selected_task_cannot_borrow_another_tasks_execution_readiness(self):
+        self.start_two_tasks()
+        self.record["tasks"][1].update({"depends_on": [], "state": "READY"})
+        self.approve(["T01"])
+        self.assertTrue(d.guard(self.root, "sample")["execution_ready"])
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        denied = d.guard(self.root, "sample", "T02")
+        self.assertTrue(denied["record_valid"])
+        self.assertFalse(denied["execution_ready"])
+        self.assertEqual(denied["selected_task"], "T02")
+        self.assertEqual(denied["next_tasks"], ["T01"])
+
+    def test_selected_task_respects_dependencies_limits_and_terminal_states(self):
+        self.start_two_tasks()
+        self.approve(["T01", "T02"])
+        self.assertFalse(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.finish_task("T01")
+        self.assertFalse(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.record["tasks"][1]["state"] = "VERIFYING"
+        self.record["tasks"][1]["used_minutes"] = 59
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.record["tasks"][1]["used_minutes"] = 60
+        self.save()
+        self.assertFalse(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.assertEqual(d.read_json(self.record_path)["tasks"][1]["used_minutes"], 60)
+        with self.assertRaisesRegex(ValueError, "Unknown task"):
+            d.guard(self.root, "sample", "T99")
+
+    def test_task_cli_fails_on_denial_but_generic_draft_remains_read_only(self):
+        self.start_two_tasks()
+        before = self.record_path.read_bytes()
+        for args, expected in (([], 0), (["--task", "T01"], 1), (["--task", "T99"], 2)):
+            with self.subTest(args=args):
+                process = subprocess.run([sys.executable, str(SCRIPT), "guard", "--project",
+                    str(self.root), "--id", "sample", *args], capture_output=True,
+                    text=True, encoding="utf-8", env={**os.environ, "PYTHONUTF8": "1"})
+                self.assertEqual(process.returncode, expected, process.stdout + process.stderr)
+                json.loads(process.stdout)
+                self.assertEqual(self.record_path.read_bytes(), before)
+        self.approve(["T01"])
+        process = subprocess.run([sys.executable, str(SCRIPT), "guard", "--project",
+            str(self.root), "--id", "sample", "--task", "T01"], capture_output=True,
+            text=True, encoding="utf-8", env={**os.environ, "PYTHONUTF8": "1"})
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertTrue(json.loads(process.stdout)["execution_ready"])
+
+    def test_module_batches_preserve_done_and_require_final_integration(self):
+        self.start_two_tasks()
+        integration = copy.deepcopy(self.record["tasks"][1])
+        integration.update({"id": "T03", "title": "Module integration regression",
+                            "depends_on": ["T01", "T02"], "checks": [self.check_def("C4")]})
+        self.record["tasks"].append(integration)
+        self.approve(["T01"])
+        baseline = d.guard(self.root, "sample")["baseline"]
+        self.finish_task("T01")
+        first = d.guard(self.root, "sample")
+        self.assertTrue(first["batch_complete"])
+        self.assertFalse(first["delivery_ready"])
+        self.assertEqual(first["remaining_tasks"], ["T02", "T03"])
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.record["tasks"][1]["state"] = "READY"
+        self.approve(["T02", "T03"])
+        self.assertEqual(d.guard(self.root, "sample")["baseline"], baseline)
+        self.assertTrue(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.assertFalse(d.guard(self.root, "sample", "T03")["execution_ready"])
+        self.finish_task("T02")
+        self.assertFalse(d.guard(self.root, "sample")["batch_complete"])
+        self.record["tasks"][2]["state"] = "READY"
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T03")["execution_ready"])
+        self.finish_task("T03")
+        self.assertTrue(d.guard(self.root, "sample")["batch_complete"])
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.accept()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["delivery_ready"])
+        self.assertEqual(result["remaining_tasks"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
