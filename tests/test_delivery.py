@@ -1712,5 +1712,422 @@ class DeliveryTests(unittest.TestCase):
                 self.assertFalse(result["execution_ready"])
 
 
+    def test_receipt_binds_changed_dependencies_even_when_subjects_omit_them(self):
+        self.start_git()
+        dependency = self.root / "extra.py"
+        dependency.write_text("value = 1\n", encoding="utf-8")
+        self.record["tasks"][0]["paths"].append("extra.py")
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        self.finish_task("T01")
+        self.accept()
+        receipt = self.record["overall"]["accepted_sha256"]
+        dependency.write_text("value = 999\n", encoding="utf-8")
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["record_valid"], result["issues"])
+        self.assertEqual(result["change_scope"]["status"], "PASS")
+        self.assertNotEqual(result["acceptance_sha256"], receipt)
+        self.assertFalse(result["delivery_ready"])
+        self.assertEqual(d.read_json(self.record_path)["overall"]["accepted_sha256"], receipt)
+
+    def test_handoff_rejects_mutable_record_self_reference(self):
+        self.complete()
+        for field in ("artifacts", "docs"):
+            original = self.record["handoff"][field][:]
+            for ref in ([self.record_path.relative_to(self.root).as_posix()]
+                        + ([self.record_path.relative_to(self.root).as_posix().upper()] if os.name == "nt" else [])):
+                with self.subTest(field=field, ref=ref):
+                    self.record["handoff"][field] = [ref]
+                    self.save()
+                    result = d.guard(self.root, "sample")
+                    self.assertIn("SELF_REFERENCE", self.codes(result))
+                    self.assertIsNone(result["acceptance_sha256"])
+                    self.assertFalse(result["delivery_ready"])
+            self.record["handoff"][field] = original
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_new_run_second_write_failure_is_retryable(self):
+        d.initialize(self.root)
+        original = d.write_atomic
+
+        def fail_record(path, data):
+            if path.name == "record.json":
+                raise OSError("Injected record write failure")
+            original(path, data)
+
+        with mock.patch.object(d, "write_atomic", side_effect=fail_record):
+            with self.assertRaises(OSError):
+                d.new_run(self.root, "retry", "Retry draft")
+        plan, record = d.run_paths(self.root, "retry")
+        self.assertFalse(plan.exists())
+        self.assertFalse(record.exists())
+        d.new_run(self.root, "retry", "Retry draft")
+        self.assertEqual(d.read_json(record)["approval"]["decision"], "PENDING")
+
+    def test_new_run_partial_pair_diagnosis_preserves_user_plan(self):
+        d.initialize(self.root)
+        plan, record = d.run_paths(self.root, "partial")
+        plan.parent.mkdir(parents=True)
+        plan.write_text("Human-authored plan", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Incomplete run.*plan.md.*record.json"):
+            d.new_run(self.root, "partial", "Do not overwrite")
+        self.assertEqual(plan.read_text(encoding="utf-8"), "Human-authored plan")
+        self.assertFalse(record.exists())
+
+    def test_inspection_consumes_a_global_streaming_budget(self):
+        consumed = []
+
+        def entries():
+            for i in range(5000):
+                consumed.append(i)
+                entry = mock.Mock()
+                entry.name = f"entry-{i}"
+                yield entry
+
+        stream = mock.MagicMock()
+        stream.__enter__.return_value = entries()
+        with mock.patch.object(d.os, "scandir", return_value=stream), \
+                mock.patch.object(Path, "iterdir", side_effect=AssertionError("Unbounded listdir")):
+            result = d.inspect(self.root)
+        self.assertEqual(len(consumed), 1001)
+        self.assertTrue(result["truncated"])
+
+    def test_receipt_ignores_staging_but_binds_dependency_deletion_and_rename(self):
+        self.start_git()
+        extra = self.root / "extra.py"
+        renamed = self.root / "renamed.py"
+        extra.write_text("value = 1\n", encoding="utf-8")
+        self.record["tasks"][0]["paths"] += ["extra.py", "renamed.py"]
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        self.finish_task("T01")
+        self.accept()
+        receipt = self.record["overall"]["accepted_sha256"]
+        for action in (lambda: self.git("add", "extra.py"), lambda: self.git("reset", "--", "extra.py")):
+            action()
+            result = d.guard(self.root, "sample")
+            self.assertEqual(result["acceptance_sha256"], receipt)
+            self.assertTrue(result["delivery_ready"], result["issues"])
+        extra.rename(renamed)
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        renamed.rename(extra)
+        extra.unlink()
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        extra.write_text("value = 1\n", encoding="utf-8")
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_receipt_ignores_preexisting_staged_content_and_binds_its_later_restore(self):
+        self.git("init", "--quiet")
+        self.git("add", "src.py", "README.md")
+        self.git("commit", "--quiet", "-m", "Fixture baseline")
+        readme = self.root / "README.md"
+        original = readme.read_bytes()
+        readme.write_text("Initial dirty content", encoding="utf-8")
+        self.git("add", "README.md")
+        self.start_git()
+        self.finish_task("T01")
+        self.accept()
+        receipt = self.record["overall"]["accepted_sha256"]
+        self.git("reset", "--", "README.md")
+        self.assertEqual(d.guard(self.root, "sample")["acceptance_sha256"], receipt)
+        readme.write_bytes(original)
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_evidence_cannot_reference_mutable_record_as_report_or_subject(self):
+        self.complete()
+        for field in ("report", "subjects"):
+            with self.subTest(field=field):
+                original = copy.deepcopy(self.record["evidence"][-1][field])
+                ref = {"path": self.record_path.relative_to(self.root).as_posix(), "sha256": "0" * 64}
+                self.record["evidence"][-1][field] = ref if field == "report" else [ref]
+                self.save()
+                result = d.guard(self.root, "sample")
+                self.assertIn("SELF_REFERENCE", self.codes(result))
+                self.assertFalse(result["delivery_ready"])
+                self.record["evidence"][-1][field] = original
+
+    def test_new_run_failure_preserves_concurrently_edited_plan(self):
+        d.initialize(self.root)
+        plan, record = d.run_paths(self.root, "edited")
+        original = d.write_atomic
+
+        def fail_after_edit(path, data):
+            if path == record:
+                plan.write_text("User changed the draft", encoding="utf-8")
+                raise OSError("Injected failure after an edit")
+            original(path, data)
+
+        with mock.patch.object(d, "write_atomic", side_effect=fail_after_edit):
+            with self.assertRaises(OSError):
+                d.new_run(self.root, "edited", "Draft")
+        self.assertEqual(plan.read_text(encoding="utf-8"), "User changed the draft")
+        self.assertFalse(record.exists())
+
+    def test_new_run_diagnoses_record_only_without_overwriting_it(self):
+        d.initialize(self.root)
+        plan, record = d.run_paths(self.root, "record-only")
+        record.parent.mkdir(parents=True)
+        record.write_bytes(b'{"human": "preserve"}')
+        with self.assertRaisesRegex(ValueError, "Incomplete run"):
+            d.new_run(self.root, "record-only", "Draft")
+        self.assertEqual(record.read_bytes(), b'{"human": "preserve"}')
+        self.assertFalse(plan.exists())
+
+    def test_inspection_budget_is_shared_across_directories_and_excluded_entries(self):
+        child = self.root / "nested"
+        child.mkdir()
+        consumed = []
+
+        def stream(folder):
+            names = ["nested", "README.md"] if Path(folder) == self.root else ["node_modules"] * 1200
+
+            def entries():
+                for name in names:
+                    consumed.append(name)
+                    entry = mock.Mock()
+                    entry.name = name
+                    yield entry
+
+            context = mock.MagicMock()
+            context.__enter__.return_value = entries()
+            return context
+
+        with mock.patch.object(d.os, "scandir", side_effect=stream):
+            result = d.inspect(self.root)
+        self.assertEqual(len(consumed), 1001)
+        self.assertTrue(result["truncated"])
+        self.assertNotIn("README.md", result["candidates"])
+
+    def start_git_features(self):
+        for name in ("f1.py", "f2.py"):
+            (self.root / name).write_text("value = 1\n", encoding="utf-8")
+        self.git("init", "--quiet")
+        self.git("add", "src.py", "README.md", "f1.py", "f2.py")
+        self.git("commit", "--quiet", "-m", "Feature fixture baseline")
+        self.start_features()
+        for task in self.record["tasks"]:
+            task["paths"] = ["f1.py" if task["feature"] == "F01" else "f2.py"]
+            task["paths"] += [f"report-{c['id']}.txt" for c in task["checks"]]
+        self.record["tasks"][1]["paths"].append("report-FC1.txt")
+        self.approve(["T01", "T02", "T03", "T04"])
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+
+    def test_feature_checkpoint_detects_changes_to_unselected_pending_feature(self):
+        self.start_git_features()
+        before = d.guard(self.root, "sample", "T01", ["F01"])
+        self.assertTrue(before["execution_ready"], before["issues"])
+        (self.root / "f2.py").write_text("value = 2\n", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T01", ["F01"], before["scope_checkpoint"])
+        self.assertEqual(result["change_scope"]["status"], "PASS")
+        self.assertEqual(result["invocation_scope"]["outside"], ["f2.py"])
+        self.assertIn("INVOCATION_SCOPE", self.codes(result))
+        self.assertFalse(result["execution_ready"])
+        self.assertFalse(result["delivery_ready"])
+
+    def test_feature_checkpoint_preserves_previous_batch_but_detects_new_edits(self):
+        self.start_git_features()
+        (self.root / "f1.py").write_text("Prior batch implementation\n", encoding="utf-8")
+        self.finish_first_feature()
+        self.record["approval_history"] = [copy.deepcopy(self.record["approval"])]
+        self.approve(["T03", "T04"])
+        self.record["approval"]["paths"] = ["."]
+        self.record["tasks"][2]["state"] = "READY"
+        self.save()
+        before = d.guard(self.root, "sample", "T03", ["F02"])
+        self.assertTrue(before["execution_ready"], before["issues"])
+        checkpoint = before["scope_checkpoint"]
+        (self.root / "f2.py").write_text("Current feature implementation\n", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T03", ["F02"], checkpoint)
+        self.assertEqual(result["invocation_scope"]["outside"], [])
+        self.assertTrue(result["execution_ready"], result["issues"])
+        (self.root / "f1.py").write_text("Unexpected new edit to the previous feature\n", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T03", ["F02"], checkpoint)
+        self.assertEqual(result["invocation_scope"]["outside"], ["f1.py"])
+        self.assertFalse(result["execution_ready"])
+
+    def test_checkpoint_rejects_stale_malformed_and_wrong_selection_inputs(self):
+        self.start_git_features()
+        checkpoint = d.guard(self.root, "sample", "T01", ["F01"])["scope_checkpoint"]
+        invalid = [{}, {**checkpoint, "features": ["F02"]}, {**checkpoint, "task": "T02"},
+                   {**checkpoint, "run": "other"}, {**checkpoint, "workspace": {"head": None, "dirty": {}}},
+                   {**checkpoint, "workspace": {"head": checkpoint["workspace"]["head"],
+                    "dirty": {"../outside": {"worktree": None, "index": None}}}}]
+        for value in invalid:
+            with self.subTest(checkpoint=value):
+                result = d.guard(self.root, "sample", "T01", ["F01"], value)
+                self.assertIn("SCOPE_CHECKPOINT", self.codes(result))
+                self.assertFalse(result["execution_ready"])
+        self.plan.write_text("Changed planning baseline", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T01", ["F01"], checkpoint)
+        self.assertIn("SCOPE_CHECKPOINT", self.codes(result))
+
+    def test_cli_checks_actual_checkpoint_and_rejects_missing_checkpoint(self):
+        self.start_git_features()
+        before = d.guard(self.root, "sample", "T01", ["F01"])
+        checkpoint_path = self.record_path.parent / "scope-before-T01.json"
+        checkpoint_path.write_bytes(d.packed(before))
+        (self.root / "f2.py").write_text("Out of invocation scope\n", encoding="utf-8")
+        args = [sys.executable, "-X", "utf8", str(SCRIPT), "guard", "--project", str(self.root),
+                "--id", "sample", "--task", "T01", "--features", "F01", "--changes-since",
+                checkpoint_path.relative_to(self.root).as_posix()]
+        process = subprocess.run(args, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(process.returncode, 1, process.stdout + process.stderr)
+        self.assertIn("INVOCATION_SCOPE", self.codes(json.loads(process.stdout)))
+        (self.root / "f2.py").write_text("value = 1\n", encoding="utf-8")
+        (self.root / "f1.py").write_text("Current task change\n", encoding="utf-8")
+        saved_checkpoint = checkpoint_path.read_bytes()
+        saved_record = self.record_path.read_bytes()
+        process = subprocess.run(args, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertEqual(json.loads(process.stdout)["invocation_scope"]["status"], "PASS")
+        self.assertEqual(checkpoint_path.read_bytes(), saved_checkpoint)
+        self.assertEqual(self.record_path.read_bytes(), saved_record)
+        checkpoint_path.write_text("{}", encoding="utf-8")
+        process = subprocess.run(args, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("scope_checkpoint", json.loads(process.stdout)["message"])
+
+    def invalidate_checks(self, check_ids):
+        baseline = d.guard(self.root, "sample")["baseline"]
+        for cid in check_ids:
+            self.record["evidence"].append({"id": f"E{len(self.record['evidence'])+1}", "check": cid,
+                "baseline": baseline, "method": "local sample check", "actual": "Impacted by provider repair",
+                "result": "NOT_VERIFIED", "at": "2026-11-03T10:00:00+08:00", "producer": "test fixture"})
+        self.save()
+
+    def test_done_chain_repair_reopens_descendants_without_resetting_usage_or_history(self):
+        self.complete_two_batches()
+        self.approve(["T01", "T02"])
+        history_ids = {e["id"] for e in self.record["evidence"]}
+        self.record["tasks"][0].update({"state": "REPAIRING", "repairs": 1, "used_minutes": 17})
+        self.record["tasks"][1]["state"] = "PENDING"
+        self.save()
+        self.invalidate_checks(["C1", "C3", "C2"])
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.finish_task("T01")
+        self.record["tasks"][1]["state"] = "READY"
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T02")["execution_ready"])
+        self.record["tasks"][1]["state"] = "DONE"
+        self.save()
+        self.assertIn("FALSE_DONE", self.codes(d.guard(self.root, "sample")))
+        self.finish_task("T02")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        self.assertTrue(history_ids.issubset({e["id"] for e in self.record["evidence"]}))
+        self.assertEqual((self.record["tasks"][0]["repairs"], self.record["tasks"][0]["used_minutes"]), (1, 17))
+
+    def test_feature_repair_invalidates_downstream_module_and_overall_checks(self):
+        self.start_features()
+        self.approve(["T01", "T02", "T03", "T04"])
+        for tid in ("T01", "T02", "T03", "T04"):
+            self.finish_task(tid)
+        self.evidence("FC1")
+        self.evidence("FC2")
+        self.accept()
+        self.record["tasks"][0].update({"state": "REPAIRING", "repairs": 1})
+        for task in self.record["tasks"][1:]:
+            task["state"] = "PENDING"
+        self.save()
+        self.invalidate_checks(["C1", "C3", "C4", "C5", "FC1", "FC2", "C2"])
+        result = d.guard(self.root, "sample", "T01", ["F01", "F02"])
+        self.assertTrue(result["execution_ready"], result["issues"])
+        for tid in ("T01", "T02"):
+            self.finish_task(tid)
+        self.record["tasks"][2]["state"] = "READY"
+        self.save()
+        self.assertFalse(d.guard(self.root, "sample", "T03", ["F02"])["execution_ready"])
+        self.record["tasks"][2]["state"] = "PENDING"
+        self.evidence("FC1")
+        self.record["tasks"][2]["state"] = "READY"
+        self.save()
+        self.assertTrue(d.guard(self.root, "sample", "T03", ["F02"])["execution_ready"])
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_receipt_binds_worktree_content_without_staged_only_false_invalidation(self):
+        self.start_git()
+        self.finish_task("T01")
+        self.accept()
+        receipt = self.record["overall"]["accepted_sha256"]
+        source = self.root / "src.py"
+        original = source.read_bytes()
+        source.write_text("value = 2\n", encoding="utf-8")
+        self.git("add", "src.py")
+        source.write_bytes(original)
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["acceptance_sha256"], receipt)
+        self.assertTrue(result["delivery_ready"], result["issues"])
+
+    def test_final_content_query_failure_does_not_reuse_a_receipt(self):
+        self.start_git()
+        self.finish_task("T01")
+        self.accept()
+        original = d.git_snapshot
+
+        def unavailable_final_query(*args, **kwargs):
+            if kwargs.get("content_only"):
+                raise ValueError("Injected final content query failure")
+            return original(*args, **kwargs)
+
+        with mock.patch.object(d, "git_snapshot", side_effect=unavailable_final_query):
+            result = d.guard(self.root, "sample")
+        self.assertIn("CHANGE_SCOPE", self.codes(result))
+        self.assertEqual(result["change_scope"]["status"], "NOT_VERIFIED")
+        self.assertIsNone(result["acceptance_sha256"])
+        self.assertFalse(result["delivery_ready"])
+
+    def test_inspection_exact_budget_and_single_lookahead(self):
+        for size in (999, 1000, 1001):
+            with self.subTest(size=size):
+                consumed = []
+
+                def entries():
+                    for i in range(size):
+                        consumed.append(i)
+                        entry = mock.Mock()
+                        entry.name = f"absent-{i}"
+                        yield entry
+
+                stream = mock.MagicMock()
+                stream.__enter__.return_value = entries()
+                with mock.patch.object(d.os, "scandir", return_value=stream):
+                    result = d.inspect(self.root)
+                self.assertEqual(len(consumed), min(size, 1001))
+                self.assertEqual(result["truncated"], size > 1000)
+
+    def test_new_run_first_write_failure_leaves_no_pair(self):
+        d.initialize(self.root)
+        with mock.patch.object(d, "write_atomic", side_effect=OSError("Injected first write failure")):
+            with self.assertRaises(OSError):
+                d.new_run(self.root, "first-failure", "Draft")
+        plan, record = d.run_paths(self.root, "first-failure")
+        self.assertFalse(plan.exists())
+        self.assertFalse(record.exists())
+        d.new_run(self.root, "first-failure", "Draft")
+        self.assertEqual(d.read_json(record)["approval"]["decision"], "PENDING")
+
+    def test_new_run_failure_preserves_other_run_material(self):
+        d.initialize(self.root)
+        plan, record = d.run_paths(self.root, "material")
+        original = d.write_atomic
+
+        def fail_after_report(path, data):
+            if path == record:
+                (plan.parent / "notes.txt").write_text("Preserve other work", encoding="utf-8")
+                raise OSError("Injected failure after another file appeared")
+            original(path, data)
+
+        with mock.patch.object(d, "write_atomic", side_effect=fail_after_report):
+            with self.assertRaises(OSError):
+                d.new_run(self.root, "material", "Draft")
+        self.assertTrue(plan.exists())
+        self.assertEqual((plan.parent / "notes.txt").read_text(encoding="utf-8"), "Preserve other work")
+
+
 if __name__ == "__main__":
     unittest.main()

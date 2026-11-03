@@ -22,6 +22,8 @@ metadata:
 
 每项任务实施 → 验证 → 失败分类 → 授权内修复 → 重验，当前必需证据有效才 DONE。修复到限、结果不明或必需条件缺失按共享规则保存原因与进度；未解决时不推进依赖该结果的任务或 Feature，不重置累计用量。
 
+按共享执行规则保留操作前 scope_checkpoint，并用 --changes-since 核对本轮实际变化；整体授权不代替本轮选择，跨批次旧改动与本轮新增修改分别判断。已完成模块返修先处理受影响后继和证据，再恢复子任务，不跳过依赖检查。
+
 当前 Feature 全部任务 DONE 后，执行其获批 checks，按原证据结构保存实际模块验收结果；只有 Guard 的 features.complete=true 才推进依赖它的 Feature。任务全 DONE 但模块证据缺失时进行模块验收，不借用另一个任务的就绪结果。所选范围无可启动任务时读取阻塞原因，不忙等或自行更改设计。
 
 本轮 selection_complete=true 只表示所选 Feature 完成；保存批次成果、未完成范围和恢复入口，按共享 [knowledge.md](../delivery/references/knowledge.md) 更新相关正文与索引。下次调用重新选择本轮范围，核实实际进度，跳过仍有效的 DONE。全部本期 Feature 完成后执行独立 overall 验收与约定接收；完整业务链路、异常和回归通过且交接齐备才判断 delivery_ready，不把模块分别通过当作系统已联通。

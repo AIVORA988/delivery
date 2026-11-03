@@ -110,19 +110,23 @@ def inspect(root: Path) -> dict:
 
     def scan(folder: Path, depth: int) -> None:
         nonlocal visited
-        for path in sorted(folder.iterdir()):
-            visited += 1
-            if visited > 1000:
-                return
-            if linked(path) or path.name in EXCLUDED:
-                continue
-            if path.is_file() and (path.name in MARKERS or path.name in {"AGENTS.md", "README.md"}):
-                found.append(path.relative_to(root).as_posix())
-            elif path.is_dir() and depth < 2:
-                scan(path, depth + 1)
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                visited += 1
+                if visited > 1000:
+                    return
+                path = folder / entry.name
+                if path.name in EXCLUDED or linked(path):
+                    continue
+                if path.is_file() and (path.name in MARKERS or path.name in {"AGENTS.md", "README.md"}):
+                    found.append(path.relative_to(root).as_posix())
+                elif path.is_dir() and depth < 2:
+                    scan(path, depth + 1)
+                    if visited > 1000:
+                        return
 
     scan(root, 0)
-    return {"status": "INSPECTED", "candidates": found, "truncated": visited > 1000,
+    return {"status": "INSPECTED", "candidates": sorted(found), "truncated": visited > 1000,
             "runtime_verified": False, "note": "File names only; no project command was executed."}
 
 
@@ -287,7 +291,38 @@ def run_paths(root: Path, run_id: str) -> tuple[Path, Path]:
     return safe(root, base + "/plan.md"), safe(root, base + "/record.json")
 
 
-def git_snapshot(root: Path, run_id: str, head: str | None = "HEAD") -> dict | None:
+def file_fingerprint(root: Path, ref: str) -> str | None:
+    safe(root, str(Path(ref).parent).replace("\\", "/"))
+    target = root / ref
+    if target.is_symlink():
+        return "link:" + digest(os.fsencode(os.readlink(target)))
+    target = safe(root, ref)
+    if target.is_file():
+        return "file:" + digest(bytes([bool(target.stat().st_mode & 0o111)]) + target.read_bytes())
+    if target.exists():
+        raise ValueError(f"Changed directory/submodule needs manual review: {ref}")
+    return None
+
+
+def valid_workspace(value: object) -> bool:
+    if (not isinstance(value, dict) or set(value) != {"head", "dirty"}
+            or (value.get("head") is not None and (not isinstance(value["head"], str)
+                or not re.fullmatch(r"[a-f0-9]{40}(?:[a-f0-9]{24})?", value["head"])))
+            or not isinstance(value.get("dirty"), dict)):
+        return False
+    for ref, item in value["dirty"].items():
+        if (not present(ref) or "\\" in ref or ":" in ref or ref.startswith("/")
+                or any(p in {"", ".", ".."} for p in ref.split("/"))
+                or not isinstance(item, dict) or set(item) != {"worktree", "index"}
+                or (item.get("worktree") is not None and (not isinstance(item["worktree"], str)
+                    or not re.fullmatch(r"(?:file|link):[a-f0-9]{64}", item["worktree"])))
+                or (item.get("index") is not None and (not isinstance(item["index"], str)
+                    or not re.fullmatch(r"[0-7]{6}:[a-f0-9]{40}(?:[a-f0-9]{24})?", item["index"])))):
+            return False
+    return True
+
+
+def git_snapshot(root: Path, run_id: str, head: str | None = "HEAD", *, content_only: bool = False) -> dict | None:
     """Read Git paths and fingerprints; never stage, reset or change project files."""
     def git(*args: str, required: bool = True) -> subprocess.CompletedProcess:
         try:
@@ -330,7 +365,7 @@ def git_snapshot(root: Path, run_id: str, head: str | None = "HEAD") -> dict | N
             index[relative(name)] = mode + ":" + oid
     names = set(index) if head is None else set()
     if head is not None:
-        for cached in ([], ["--cached"]):
+        for cached in ([[]] if content_only else [[], ["--cached"]]):
             output = git("diff", *cached, "--no-relative", "--name-only", "--no-renames", "--no-ext-diff",
                          "--no-textconv", "-z", head, "--", ".").stdout
             names.update(relative(p) for p in output.split(b"\0") if p)
@@ -340,21 +375,20 @@ def git_snapshot(root: Path, run_id: str, head: str | None = "HEAD") -> dict | N
     for ref in sorted(names):
         if ref.startswith(f".delivery/runs/{run_id}/"):
             continue
-        safe(root, str(Path(ref).parent).replace("\\", "/"))
-        target = root / ref
-        if target.is_symlink():
-            fingerprint = "link:" + digest(os.fsencode(os.readlink(target)))
-        else:
-            target = safe(root, ref)
-            if target.is_file():
-                executable = bool(target.stat().st_mode & 0o111)
-                fingerprint = "file:" + digest(bytes([executable]) + target.read_bytes())
-            elif target.exists():
-                raise ValueError(f"Changed directory/submodule needs manual review: {ref}")
-            else:
-                fingerprint = None
-        dirty[ref] = {"worktree": fingerprint, "index": index.get(ref)}
+        dirty[ref] = {"worktree": file_fingerprint(root, ref), "index": index.get(ref)}
     return {"head": head, "dirty": dirty}
+
+
+def receipt_changes(root: Path, run_id: str, original: dict) -> dict:
+    current = git_snapshot(root, run_id, original["head"], content_only=True)
+    if current is None:
+        raise ValueError("The recorded Git workspace is unavailable")
+    changes = {}
+    for ref in sorted(original["dirty"].keys() | current["dirty"].keys()):
+        fingerprint = file_fingerprint(root, ref)
+        if ref not in original["dirty"] or fingerprint != original["dirty"][ref]["worktree"]:
+            changes[ref] = fingerprint
+    return changes
 
 
 def new_run(root: Path, run_id: str, title: str, scenario: str = "standard") -> dict:
@@ -363,7 +397,10 @@ def new_run(root: Path, run_id: str, title: str, scenario: str = "standard") -> 
     if scenario not in SCENARIOS:
         raise ValueError("Unknown planning scenario")
     plan, record = run_paths(root, run_id)
-    if plan.exists() or record.exists():
+    if plan.exists() != record.exists():
+        raise ValueError("Incomplete run: plan.md and record.json must both exist; preserve existing files, "
+                         "review the workspace and recover an unapproved draft without inventing an original snapshot")
+    if plan.exists():
         raise ValueError("Run already exists; reuse it instead of overwriting")
     read_json(safe(root, ".delivery/project.json"))
     data = read_json(SKILL / "assets/run.json")
@@ -373,8 +410,19 @@ def new_run(root: Path, run_id: str, title: str, scenario: str = "standard") -> 
         data["features"] = []
     text = (SKILL / "assets/delivery-plan.md").read_text(encoding="utf-8")
     text = "# " + title + "\n" + text.split("\n", 1)[1]
-    write_atomic(plan, text.encode("utf-8"))
-    write_atomic(record, packed(data))
+    plan_bytes, record_bytes = text.encode("utf-8"), packed(data)
+    write_atomic(plan, plan_bytes)
+    try:
+        write_atomic(record, record_bytes)
+    except OSError:
+        try:
+            # Preserve user edits or other files if ownership has become uncertain.
+            if (not record.exists() and plan.read_bytes() == plan_bytes
+                    and set(plan.parent.iterdir()) == {plan}):
+                plan.unlink()
+        except OSError:
+            pass
+        raise
     return {"status": "DRAFT", "plan": plan.relative_to(root).as_posix(),
             "record": record.relative_to(root).as_posix(), "approved": False}
 
@@ -414,7 +462,7 @@ def covered(path: str, boundaries: list) -> bool:
 
 
 def guard(root: Path, run_id: str, task_id: str | None = None,
-          feature_ids: list[str] | None = None) -> dict:
+          feature_ids: list[str] | None = None, changes_since: dict | None = None) -> dict:
     plan, path = run_paths(root, run_id)
     record = read_json(path)
     issues, waiting = [], []
@@ -431,7 +479,12 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             return False
         valid = True
         for ref in value:
-            if not safe(root, ref).is_file():
+            target = safe(root, ref)
+            if field in {"handoff.artifacts", "handoff.docs"} and (
+                    target == path or (target.is_file() and target.samefile(path))):
+                error("SELF_REFERENCE", field, "The mutable run record cannot be a stable artifact/report")
+                valid = False
+            elif not target.is_file():
                 error("MISSING_FILE", field, f"Reference does not exist: {ref}")
                 valid = False
         return valid
@@ -461,22 +514,8 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             if target == path or not target.is_file():
                 error("CONTRACTS", "contracts", "Contract must exist and cannot be the mutable run record")
     workspace = record.get("workspace")
-    if workspace is not None:
-        if (not isinstance(workspace, dict) or set(workspace) != {"head", "dirty"}
-                or (workspace.get("head") is not None and (not isinstance(workspace["head"], str)
-                    or not re.fullmatch(r"[a-f0-9]{40}(?:[a-f0-9]{24})?", workspace["head"])))
-                or not isinstance(workspace.get("dirty"), dict)):
-            error("WORKSPACE", "workspace", "Expected the original Git head and dirty-file fingerprints")
-        else:
-            for ref, value in workspace["dirty"].items():
-                if (not present(ref) or "\\" in ref or ":" in ref or ref.startswith("/")
-                        or any(p in {"", ".", ".."} for p in ref.split("/"))
-                        or not isinstance(value, dict) or set(value) != {"worktree", "index"}
-                        or (value.get("worktree") is not None and (not isinstance(value["worktree"], str)
-                            or not re.fullmatch(r"(?:file|link):[a-f0-9]{64}", value["worktree"])))
-                        or (value.get("index") is not None and (not isinstance(value["index"], str)
-                            or not re.fullmatch(r"[0-7]{6}:[a-f0-9]{40}(?:[a-f0-9]{24})?", value["index"])))):
-                    error("WORKSPACE", "workspace.dirty", "Invalid original Git fingerprint")
+    if workspace is not None and not valid_workspace(workspace):
+        error("WORKSPACE", "workspace", "Expected the original Git head and valid dirty-file fingerprints")
     if issues:
         return {"record_valid": False, "execution_ready": False, "batch_complete": False,
                 "delivery_ready": False, "issues": issues}
@@ -731,6 +770,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
 
     change_scope = {"status": "NOT_CONFIGURED", "changed": [], "outside": [],
                     "reason": "No original Git snapshot; review actual changes manually"}
+    current = None
     if workspace is not None:
         change_scope = {"status": "WAITING_APPROVAL", "changed": [], "outside": []}
         if valid_approval and not issues:
@@ -750,6 +790,28 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             except (OSError, ValueError) as exc:
                 change_scope = {"status": "NOT_VERIFIED", "changed": [], "outside": [], "reason": str(exc)}
                 error("CHANGE_SCOPE", "workspace", "Cannot verify actual Git changes; preserve the original snapshot")
+
+    invocation_scope = {"status": "NOT_CHECKED", "changed": [], "outside": []}
+    if changes_since is not None:
+        if (not isinstance(changes_since, dict)
+                or set(changes_since) != {"run", "baseline", "features", "task", "workspace"}
+                or changes_since.get("run") != run_id or changes_since.get("baseline") != baseline
+                or changes_since.get("features") != (feature_ids or [])
+                or not present(changes_since.get("task")) or changes_since["task"] not in authorized
+                or (task_id is not None and changes_since["task"] != task_id)
+                or not valid_workspace(changes_since.get("workspace"))
+                or workspace is None or changes_since["workspace"]["head"] != workspace["head"]
+                or current is None):
+            invocation_scope["status"] = "NOT_VERIFIED"
+            error("SCOPE_CHECKPOINT", "changes_since", "Use the actual pre-operation Guard checkpoint for this run, task and selection")
+        else:
+            before = changes_since["workspace"]["dirty"]
+            changed = sorted(ref for ref in before.keys() | current["dirty"].keys()
+                             if before.get(ref) != current["dirty"].get(ref))
+            outside = [ref for ref in changed if not covered(ref, tasks[changes_since["task"]]["paths"])]
+            invocation_scope = {"status": "FAIL" if outside else "PASS", "changed": changed, "outside": outside}
+            for ref in outside:
+                error("INVOCATION_SCOPE", ref, "Changes since the checkpoint exceed the selected task paths")
 
     evidence, verdicts = {}, {}
     blocking_failures = set()
@@ -800,7 +862,10 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                         fresh = False
                         continue
                     target = safe(root, ref["path"])
-                    if not target.is_file() or digest(target.read_bytes()) != ref.get("sha256"):
+                    if target == path or (target.is_file() and target.samefile(path)):
+                        error("SELF_REFERENCE", eid, "Evidence cannot bind the mutable run record itself")
+                        fresh = False
+                    elif not target.is_file() or digest(target.read_bytes()) != ref.get("sha256"):
                         fresh = False
                         waiting.append(f"{eid}: subject/report missing or changed")
         verdicts[cid] = e.get("result") if fresh else "NOT_VERIFIED"
@@ -901,7 +966,14 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                    "evidence": {cid: evidence.get(latest.get(cid)) for cid in sorted(receipt_checks)},
                    "files": [{"path": ref, "sha256": digest(safe(root, ref).read_bytes())}
                              for ref in sorted(set(handoff["artifacts"] + handoff["docs"]))]}
-        acceptance_sha256 = digest(json.dumps(receipt, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+        if workspace is not None:
+            try:
+                receipt["changes"] = receipt_changes(root, run_id, workspace)
+            except (OSError, ValueError) as exc:
+                change_scope.update({"status": "NOT_VERIFIED", "reason": str(exc)})
+                error("CHANGE_SCOPE", "workspace", "Cannot bind final workspace contents to acceptance")
+        if not issues:
+            acceptance_sha256 = digest(json.dumps(receipt, sort_keys=True, ensure_ascii=False).encode("utf-8"))
     accepted = (all(present(overall.get(k)) for k in ("accepted_by", "accepted_at", "source"))
                 and acceptance_sha256 is not None and overall.get("accepted_sha256") == acceptance_sha256)
     if acceptance_sha256 is not None and not accepted:
@@ -934,6 +1006,10 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             "delivery_ready": bool(ready) and not issues, "baseline": baseline,
             "acceptance_sha256": acceptance_sha256,
             "change_scope": change_scope,
+            "invocation_scope": invocation_scope,
+            "scope_checkpoint": {"run": run_id, "baseline": baseline, "features": feature_ids or [],
+                                 "task": task_id, "workspace": current}
+                                if current is not None and task_id is not None and executable and not issues else None,
             "next_tasks": next_tasks, "check_results": verdicts,
             "followups_pending": [f["id"] for f in record["followups"] if f["status"] != "PASS"],
             "waiting": list(dict.fromkeys(waiting)), "issues": issues,
@@ -955,6 +1031,7 @@ def main() -> int:
         if command == "guard":
             p.add_argument("--task", help="Check execution readiness of this specific task")
             p.add_argument("--features", nargs="+", help="Explicitly selected Feature IDs for this invocation")
+            p.add_argument("--changes-since", help="Project-relative JSON output from the pre-operation Guard")
     args = parser.parse_args()
     try:
         root = args.project.expanduser().resolve(strict=True)
@@ -963,7 +1040,12 @@ def main() -> int:
         if args.command == "new":
             result = new_run(root, args.id, args.title, args.scenario)
         elif args.command == "guard":
-            result = guard(root, args.id, args.task, args.features)
+            checkpoint = None
+            if args.changes_since is not None:
+                checkpoint = read_json(safe(root, args.changes_since)).get("scope_checkpoint")
+                if checkpoint is None:
+                    raise ValueError("The pre-operation Guard output has no executable scope_checkpoint")
+            result = guard(root, args.id, args.task, args.features, checkpoint)
         else:
             result = {"inspect": inspect, "init": initialize, "check": check}[args.command](root)
         print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -90,9 +90,11 @@ For a Feature plan, invoke `$delivery-feature-run` and select the current scope 
 | Area | Current implementation |
 | --- | --- |
 | Approval and dependencies | Validate plan / Graph baselines, task / Feature dependencies, approved tasks and paths, and recorded cumulative repair / time limits; retain valid historical authorization for DONE tasks |
-| Actual change scope | New Git-backed runs capture the initial workspace and check staged, unstaged, untracked and committed changes. Out-of-scope changes or an unavailable recorded workspace block readiness and delivery. Legacy records and non-Git projects require manual review |
+| Actual change scope | New Git-backed runs check cumulative staged, unstaged, untracked and committed changes. Agents retain a pre-operation checkpoint and use `--changes-since` to check new changes against the current task, preserving unchanged work from earlier batches. Legacy records and non-Git projects require manual review |
 | Evidence | Check the current baseline, method, source / artifact and raw-report versions. File changes invalidate affected PASS results; historical evidence is retained |
-| Final receipt | Generate an acceptance fingerprint only after all tasks are legitimately DONE, required task / module / overall checks pass, and documentation and knowledge handoff are ready. Actual acceptance must cover that version |
+| Final receipt | Generate a fingerprint after legitimate task completion, required task / module / overall checks and handoff. Bind evidence, delivery files and Git-visible result changes; actual acceptance must cover the current version and cannot be carried forward automatically |
+
+Repairing a completed dependency chain requires reopening affected descendants and invalidating affected checks before resuming under the existing authorization and cumulative limits. The stronger result binding may invalidate older Git-backed acceptance fingerprints after an upgrade; tasks and approvals remain intact, but acceptance must be checked against the current result. [Execution and compatibility rules](skills/delivery/references/execution.md) (Chinese)
 
 Approved acceptance methods may include source review, builds, tests, local execution, Mock or live environments. Conclusions apply only to verified coverage. Explicitly approved follow-up validation remains `NOT_VERIFIED`; required current-scope checks cannot be silently deferred. Separate module passes do not replace complete business-path, failure and regression checks.
 

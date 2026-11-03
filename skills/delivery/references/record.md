@@ -121,17 +121,21 @@ Feature 型计划不传 --features 时只做状态审查，next_tasks 为空、e
 
 输出 selected_features、按依赖排列的 feature_order、selection_ready、selection_complete 和 features 进度。next_tasks 仅来自排序后首个未完成 Feature，避免多选变成隐式并行；具体 --task 仍须处于候选中。模块验收待执行时可能 selection_ready=true 而 execution_ready=false，因为没有新的子任务可启动，执行方应按获批方法补模块检查。全选范围已完成时不重跑任务，selection_complete=true 仍不代表系统完成。
 
+Git 起点可用且具体任务可执行时，输出 scope_checkpoint，包含 run、baseline、features、task、workspace。执行方在操作前把完整 Guard JSON 临时保存在当前 run，操作后用原选择 / 任务加 `--changes-since <项目相对JSON路径>`；程序读取其中的 scope_checkpoint，核对运行、基线、选择、任务和原 HEAD，再比较暂存 / 工作区指纹。invocation_scope 为 PASS / FAIL / NOT_VERIFIED；未传入为 NOT_CHECKED，不等于本轮范围通过。范围限于该任务 paths，累计 change_scope 的批准批次与历史 DONE 语义不变。无效 / 过期检查点产生 SCOPE_CHECKPOINT，越界产生 INVOCATION_SCOPE，均阻止执行和交付；缺文件或缺检查点为输入错误。它是临时只读校验输入，不写 record、不改变 Graph，也不自动执行或认证检查点来源；丢失后先人工核实，不以当前状态补造过去。具体操作与恢复次序见 [execution.md](execution.md)。
+
 features 返回 id、title、tasks、done（已标记 DONE 数）、tasks_done、complete、authorized 和 blocked_by；任务数量不代表证据已通过，完整判定读取 complete 和 issues。取消选择不调用执行；未知 / 重复 / 空选择是输入错误（退出 2），--features 范围未获批或依赖不闭合为未就绪（退出 1）。合法选择可退出 0，实际任务是否可启动仍读取 execution_ready；带 --task 时该任务未就绪退出 1。
 
 `batch_complete` 是派生结果：当前审批及有限规则有效、批准任务非空、该批次全部 DONE 且必需证据通过、无记录问题；不要求其余模块或 overall 已完成。`remaining_tasks` 列出原 Graph 中尚未 DONE 的任务。分批切换沿用同一 run 和基线，历史快照规则不变；本批次完成时保存 handoff.resume，最终集成与整体验收仍决定 delivery_ready。
 
 DONE 表示该任务有可追溯的有效执行授权，当前适用必需检查通过且证据有效。未经授权的 DONE 产生 DONE_AUTHORIZATION 问题并阻止交付。Feature 场景还须全部模块 complete；全部任务 DONE 后仍要检查 overall.checks 与实际接收来源。artifacts / docs 为存在的交付文件列表，必要材料不能为空。
 
-Guard 输出的 `acceptance_sha256` 是接收版本摘要，不是批准或接收证明。仅在全部任务合法 DONE、任务 / Feature / 整体必需检查通过、审批及限额有效、无校验错误、必要交付文件和知识交接就绪时生成；实际接收本身在摘要生成后记录，其他前提未满足时为 null。它绑定当前 plan / Graph 基线、任务 / Feature / overall 的适用必需检查及 failure_blocks 检查的最新证据，以及 handoff.artifacts / docs 中各文件的路径和实际内容。交付文件应为稳定产物或说明，不将持续写入的本 run record.json 本身列为稳定交付文件，避免摘要自引用。
+Guard 输出的 `acceptance_sha256` 是接收版本摘要，不是批准或接收证明。仅在全部任务合法 DONE、任务 / Feature / 整体必需检查通过、审批及限额有效、无校验错误、必要交付文件和知识交接就绪时生成；实际接收本身在摘要生成后记录，其他前提未满足时为 null。它绑定当前 plan / Graph 基线、任务 / Feature / overall 的适用必需检查及 failure_blocks 检查的最新证据，以及 handoff.artifacts / docs 中各文件的路径和实际内容。交付文件应为稳定产物或说明；handoff.artifacts / docs 及当前有效证据的 subjects / report 引用本 run 可变 record.json 时产生 SELF_REFERENCE，摘要为 null，不能通过改大小写或同文件别名规避。普通稳定 JSON / 报告仍允许。
+
+有原 Git 起点时，接收摘要还绑定起点以来实际成果差异及最终内容，包括新增 / 修改 / 删除 / 重命名；保持未变的原有脏文件不纳入，单纯暂存 / 取消暂存不改变成果摘要，本 run 记录目录仍不作累计业务修改核对。未被 subjects 引用的可见 Git 成果变化也使旧接收失效，但不自动证明检查覆盖充分；须真实重验受影响项及完成约定接收，不能自动更新 accepted_sha256。原 Git 起点不可读时不生成摘要，不降级成人工通过。
 
 先完成必要检查和交付材料，取得非空 acceptance_sha256，按该版本进行约定接收。仅在真实接收来源确实覆盖当前基线与成果后，将该摘要写入 `overall.accepted_sha256`，同时记录实际 accepted_by / accepted_at / source，再运行 Guard 核对。Guard 不回填字段；不得随重验自动覆盖摘要来沿用旧接收。基线、受约束证据或交付文件变化后摘要不匹配，delivery_ready=false；任务执行授权、batch_complete 和有效历史 DONE 仍按原规则判定。
 
-该字段不加入 Graph 摘要，不改审批或证据基线。批次切换、状态 / 用量、恢复入口、后续专项状态及未纳入上述文件或证据的可选知识更新不影响接收摘要。旧记录缺少 accepted_sha256 时仍可读取、恢复任务和保留有效审批；最终交付须核实可追溯原接收是否覆盖当前版本，无法证明时重新完成约定接收，不能自动补摘要。摘要不提供身份认证、防篡改或未引用文件的变更检测。
+该字段不加入 Graph 摘要，不改审批或证据基线。批次切换、状态 / 用量、恢复入口、后续专项状态和仅修改知识引用不影响接收摘要；Git 范围内知识正文实际变化照常纳入成果差异。旧记录仍可读取、恢复任务和保留有效审批；有 Git 起点的旧接收可能因增强成果绑定而失效，不能自动换算摘要，须核实实际接收覆盖当前成果，无法证明时重新接收。无原起点仍保留人工范围核对，不补造历史。摘要不提供身份认证、防篡改、业务覆盖分析或 Git 忽略文件 / 项目外操作检测。
 
 knowledge.status 为 PENDING / UPDATED / NO_INCREMENT / DRAFT_READY；UPDATED / DRAFT_READY 要有实际稿件引用，NO_INCREMENT 要有理由。知识库不可写时允许交接更新稿，后续同步不默认阻断本期。
 

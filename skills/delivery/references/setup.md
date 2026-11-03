@@ -46,6 +46,8 @@ python .agents/skills/delivery/scripts/delivery.py new --project . --id first-sl
 
 新需求生成 `.delivery/runs/first-slice/plan.md` 和 `record.json`，均为未审批草稿。--scenario 可选 simple / standard / feature，默认 standard；分别限制整个需求最多 3 / 15，或每 Feature 最多 30 个任务。前者供审批阅读，后者由 Agent 维护任务、审批、证据及交接。重复 ID 拒绝覆盖，跨会话 / 分批沿用原记录。简单任务也先规划审批，历史无 scenario 记录保持原语义而不静默迁移。
 
+可捕获的 record 写入失败仅清理本次创建且未被改动、没有其他资料的 plan，允许重试；不确定归属时保留文件。进程中断留下单文件时，new 明确报告 Incomplete run；先备份和审查已有文件，再恢复未批准草稿，不覆盖人工方案。若原工作区起点已经丢失，重新调查现存修改并确认当前起点，不补造过去的 snapshot、审批或执行记录。
+
 在实施前建立 run：new 会读取原始 Git HEAD 和已有改动指纹到 workspace，Guard 据此核对后续实际范围；不自动暂存或提交。Git 不可用或旧记录无起点时明确返回 change_scope=NOT_CONFIGURED，由 Agent 人工核对，不补造历史起点。已有 Git 起点但查询失败时不降级放行，详见 [记录契约](record.md)。
 
 进入 Loop、重要重验、恢复与交付前，Agent 读取 [record.md](record.md) 并执行：
