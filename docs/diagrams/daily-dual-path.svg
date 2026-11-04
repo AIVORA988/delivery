@@ -67,7 +67,7 @@
 <rect x="830" y="703" width="690" height="181" rx="20" fill="#fff" stroke="#d1c9fb" stroke-width="1.5"/>
 <rect x="830" y="703" width="10" height="181" rx="5" fill="#8e7ae7"/>
 <text x="864" y="746" class="skill purple">$delivery-feature-run</text>
-<text x="864" y="783" class="body">选择已批准 Feature，按依赖推进</text>
+<text x="864" y="783" class="body">确定本轮已批准范围，按依赖推进</text>
 <text x="864" y="820" class="muted">子任务 Loop → 模块验收 → 下一个所选模块</text>
 <rect x="864" y="836" width="361" height="33" rx="16" fill="#eeeaff"/><text x="1044" y="859" class="small center purple">本轮所选完成 ≠ 本期整体完成</text>
 <path class="edge" d="M425 884V922"/><path class="edge" d="M1175 884V922"/>

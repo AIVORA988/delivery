@@ -248,29 +248,47 @@ def knowledge_context(root: Path, paths: list) -> dict:
             "note": "Names and the default entry only; candidates are not verified knowledge."}
 
 
+def installation_files(root: Path) -> dict[str, bytes]:
+    receipt_path = safe(root, ".delivery/install.json")
+    raw = receipt_path.read_bytes()
+    receipt = json.loads(raw.decode("utf-8-sig"))
+    if (not isinstance(receipt, dict)
+            or set(receipt) != {"schema_version", "package_version", "workflow", "files", "companions"}
+            or type(receipt["schema_version"]) is not int or receipt["schema_version"] != 1
+            or receipt["package_version"] != VERSION or receipt["workflow"] != WORKFLOW
+            or not isinstance(receipt["companions"], dict) or set(receipt["companions"]) != set(COMPANIONS)):
+        raise ValueError("Incomplete or incompatible install receipt; run init from the complete distribution")
+    manifests = {"delivery": receipt["files"], **receipt["companions"]}
+    installed = {}
+    for name, files in manifests.items():
+        if (not isinstance(files, dict) or "SKILL.md" not in files
+                or (name == "delivery" and "scripts/delivery.py" not in files)):
+            raise ValueError(f"Incomplete {name} installation; run init from the complete distribution")
+        for relative, expected in files.items():
+            ref = f".agents/skills/{name}/{relative}"
+            path = safe(root, ref)
+            if (not isinstance(expected, str) or not re.fullmatch(r"[a-f0-9]{64}", expected)
+                    or not path.is_file()):
+                raise ValueError(f"Missing or invalid Skill file: {name}/{relative}")
+            data = path.read_bytes()
+            if digest(data) != expected:
+                raise ValueError(f"Locally changed Skill file: {name}/{relative}")
+            installed[ref] = data
+    installed[".delivery/install.json"] = raw
+    return installed
+
+
 def check(root: Path) -> dict:
     config = read_json(safe(root, ".delivery/project.json"))
-    receipt = read_json(safe(root, ".delivery/install.json"))
     issues = []
     if config.get("schema_version") != 1 or config.get("workflow") != WORKFLOW:
         issues.append("Project schema/workflow mismatch")
     if not isinstance(config.get("commands"), dict) or not isinstance(config.get("policy"), dict):
         issues.append("Project commands/policy must be objects")
-    companions = receipt.get("companions", {})
-    if not isinstance(companions, dict) or set(companions) - set(COMPANIONS):
-        issues.append("Invalid companion manifest")
-        companions = {}
-    manifests = {"delivery": receipt.get("files"),
-                 **{name: companions.get(name) for name in COMPANIONS}}
-    for name, files in manifests.items():
-        if (not isinstance(files, dict) or "SKILL.md" not in files
-                or (name == "delivery" and "scripts/delivery.py" not in files)):
-            issues.append(f"Incomplete {name} installation; run init from the complete distribution")
-            continue
-        for relative, expected in files.items():
-            path = safe(root, f".agents/skills/{name}/{relative}")
-            if not path.is_file() or digest(path.read_bytes()) != expected:
-                issues.append(f"Missing or locally changed Skill file: {name}/{relative}")
+    try:
+        installation_files(root)
+    except (OSError, ValueError, TypeError) as exc:
+        issues.append(str(exc))
     paths = config.get("knowledge_paths", [])
     if not isinstance(paths, list) or any(not present(p) for p in paths):
         raise ValueError("knowledge_paths must be a list of project-relative paths")
@@ -379,12 +397,65 @@ def git_snapshot(root: Path, run_id: str, head: str | None = "HEAD", *, content_
     return {"head": head, "dirty": dirty}
 
 
+def workspace_changes(root: Path, before: dict, after: dict) -> tuple[list[str], list[str]]:
+    changed = sorted(ref for ref in before["dirty"].keys() | after["dirty"].keys()
+                     if before["dirty"].get(ref) != after["dirty"].get(ref))
+    if not any(ref == ".delivery/install.json" or ref.startswith(".agents/skills/") for ref in changed):
+        return changed, []
+    try:
+        installed = installation_files(root)
+    except (OSError, ValueError, TypeError):
+        return changed, []
+    candidates = [ref for ref in changed if ref in installed]
+    base_index = {}
+    if before["head"] is not None and any(
+            ref not in before["dirty"] or ref not in after["dirty"] for ref in candidates):
+        try:
+            result = subprocess.run(["git", "--literal-pathspecs", "-C", str(root), "ls-tree", "-r", "-z",
+                before["head"], "--", ".agents/skills", ".delivery/install.json"], capture_output=True, timeout=30,
+                env={**os.environ, "GIT_OPTIONAL_LOCKS": "0", "LC_ALL": "C"})
+        except (OSError, subprocess.TimeoutExpired):
+            return changed, []
+        if result.returncode:
+            return changed, []
+        for item in result.stdout.split(b"\0"):
+            if item:
+                fields, name = item.split(b"\t", 1)
+                mode, _, oid = fields.decode("ascii").split()
+                base_index[os.fsdecode(name)] = mode + ":" + oid
+    maintenance = []
+    for ref in candidates:
+        # Installed bytes do not justify staging different content or changing executable permissions.
+        if safe(root, ref).stat().st_mode & 0o111:
+            continue
+        old_index = before["dirty"].get(ref, {}).get("index", base_index.get(ref))
+        new_index = after["dirty"].get(ref, {}).get("index", base_index.get(ref))
+        if new_index != old_index and new_index is not None:
+            data = installed[ref]
+            oid = new_index.split(":", 1)[1]
+            contents = {data}
+            if Path(ref).suffix in {".md", ".py", ".json", ".yaml", ".yml", ".txt", ".svg"} and b"\0" not in data:
+                contents.add(data.replace(b"\r\n", b"\n"))
+            indexes = {"100644:" + hashlib.new("sha1" if len(oid) == 40 else "sha256",
+                b"blob " + str(len(content)).encode("ascii") + b"\0" + content).hexdigest()
+                for content in contents}
+            if new_index not in indexes:
+                continue
+        elif new_index != old_index:
+            continue
+        maintenance.append(ref)
+    return [ref for ref in changed if ref not in maintenance], maintenance
+
+
 def receipt_changes(root: Path, run_id: str, original: dict) -> dict:
     current = git_snapshot(root, run_id, original["head"], content_only=True)
     if current is None:
         raise ValueError("The recorded Git workspace is unavailable")
+    _, maintenance = workspace_changes(root, original, current)
     changes = {}
     for ref in sorted(original["dirty"].keys() | current["dirty"].keys()):
+        if ref in maintenance:
+            continue
         fingerprint = file_fingerprint(root, ref)
         if ref not in original["dirty"] or fingerprint != original["dirty"][ref]["worktree"]:
             changes[ref] = fingerprint
@@ -778,13 +849,13 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
                 current = git_snapshot(root, run_id, workspace["head"])
                 if current is None:
                     raise ValueError("The recorded Git workspace is unavailable")
-                changed = sorted(ref for ref in workspace["dirty"].keys() | current["dirty"].keys()
-                                 if workspace["dirty"].get(ref) != current["dirty"].get(ref))
+                changed, maintenance = workspace_changes(root, workspace, current)
                 allowed = [p for tid, task in tasks.items()
                            if tid in authorized or (task["state"] == "DONE" and tid in done_authorized)
                            for p in task["paths"]] + contracts
                 outside = [ref for ref in changed if not covered(ref, allowed)]
-                change_scope = {"status": "FAIL" if outside else "PASS", "changed": changed, "outside": outside}
+                change_scope = {"status": "FAIL" if outside else "PASS", "changed": changed,
+                                "outside": outside, "maintenance": maintenance}
                 for ref in outside:
                     error("CHANGE_SCOPE", ref, "Actual Git changes exceed current or completed-task authorization")
             except (OSError, ValueError) as exc:
@@ -805,11 +876,10 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             invocation_scope["status"] = "NOT_VERIFIED"
             error("SCOPE_CHECKPOINT", "changes_since", "Use the actual pre-operation Guard checkpoint for this run, task and selection")
         else:
-            before = changes_since["workspace"]["dirty"]
-            changed = sorted(ref for ref in before.keys() | current["dirty"].keys()
-                             if before.get(ref) != current["dirty"].get(ref))
+            changed, maintenance = workspace_changes(root, changes_since["workspace"], current)
             outside = [ref for ref in changed if not covered(ref, tasks[changes_since["task"]]["paths"])]
-            invocation_scope = {"status": "FAIL" if outside else "PASS", "changed": changed, "outside": outside}
+            invocation_scope = {"status": "FAIL" if outside else "PASS", "changed": changed,
+                                "outside": outside, "maintenance": maintenance}
             for ref in outside:
                 error("INVOCATION_SCOPE", ref, "Changes since the checkpoint exceed the selected task paths")
 
@@ -925,7 +995,8 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
             order_feature(fid)
             if any(tid not in authorized and tasks[tid]["state"] != "DONE"
                    for tid in feature_members[fid]):
-                error("FEATURE_SELECTION", fid, "Selected Feature contains tasks outside current approval")
+                error("FEATURE_SELECTION", fid, "Authorize all unfinished tasks in this Feature before selection; "
+                      "a fully authorized Feature may still execute only the requested task subset")
             if any(not feature_complete[d] and d not in selected for d in features[fid]["depends_on"]):
                 error("FEATURE_SELECTION", fid, "Select unfinished prerequisite Features explicitly or wait for completion")
         current_feature = next((fid for fid in feature_order if not feature_complete[fid]), None)

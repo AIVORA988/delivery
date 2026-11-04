@@ -18,6 +18,10 @@
 
 输出 `change_scope`：PASS 表示此次范围核对通过；FAIL 的 outside 列出越界路径；NOT_VERIFIED 表示原 Git 工作区不可读、冲突或不支持的变更，后二者均阻止执行就绪和最终交付。WAITING_APPROVAL 表示尚无有效审批；其他记录错误应同时查看 issues。旧记录或非 Git 环境无原始 workspace 时输出 NOT_CONFIGURED，保留原审批与任务语义，Agent 必须人工核对实际差异，不能声称自动范围检查通过。Guard 不自动迁移旧记录。
 
+合法安装维护单独列在 `maintenance`：当前安装回执须结构合法、包含五个 Skill，精确受管文件存在且内容摘要吻合。累计 change_scope、本轮 invocation_scope 与最终接收的成果差异统一区分该维护；不改写 workspace / Graph。未登记文件、异常回执、本地摘要不符、可执行位变化和暂存的其他内容仍走普通范围检查，不整体豁免 .agents / .delivery。无法核实原索引时不采用维护排除。它只避免纯安装更新被当成业务变化；subjects 和交付文件内容绑定保持，Skill 本身作为检查成果时变化仍使证据 / 接收过期。回执是本地一致性依据，不认证安装授权或防篡改。
+
+已核实的文本安装文件正常 CRLF → LF 暂存转换保持为安装维护；任意其他暂存内容不因工作区恢复为受管版本而被隐藏。
+
 此核对限定项目目录与检查时的累计差异，不能归因多个操作者、检测已撤销的瞬时写入、Git 忽略的未跟踪产物或项目外操作；变更子模块内容须另行人工处理。它不是实时拦截、逐操作授权或权限沙箱。Git 配置和工作区须可信，报告真实性与业务影响仍由 Agent 和接收方核实。
 
 ## 结构
@@ -117,7 +121,7 @@ subjects 绑定本次检查的源码、配置或产物；报告记录实际命�
 
 无 --task 时保持原语义：execution_ready 表示至少有一项可执行，合法草稿可退出 0。不能将全局结果用于任意 Task ID，也不能将退出 0 等同于审批通过。
 
-Feature 型计划不传 --features 时只做状态审查，next_tasks 为空、execution_ready=false，即便 --task 指向已批准任务也不能借此绕过选择。开发者确认单选或多选后，执行方传 `guard --project <项目> --id <原需求ID> --features F01 F02`；每任务再加 `--task T01`。所选 ID 唯一且存在，必须由有效当前授权覆盖未完成子任务；未完成前置须同选或已 complete，不自动扩大选择。选择不改审批、Graph 或任何文件。
+Feature 型计划不传 --features 时只做状态审查，next_tasks 为空、execution_ready=false，即便 --task 指向已批准任务也不能借此绕过选择。本轮已明确 ID 或唯一可定位名称时直接采用；缺失或有歧义时才收集选择，不重复询问已明确范围。执行方传 `guard --project <项目> --id <原需求ID> --features F01 F02`，每任务再加 `--task T01`。所选 ID 唯一且存在，当前授权须覆盖该模块全部未完成子任务；普通需求的任务级分批授权不等同 Feature 完整模块授权。完整授权后本轮可只执行指定任务，不能自动批准其他任务。未完成前置须同选或已 complete，不自动扩大选择。选择不改审批、Graph 或任何文件。
 
 输出 selected_features、按依赖排列的 feature_order、selection_ready、selection_complete 和 features 进度。next_tasks 仅来自排序后首个未完成 Feature，避免多选变成隐式并行；具体 --task 仍须处于候选中。模块验收待执行时可能 selection_ready=true 而 execution_ready=false，因为没有新的子任务可启动，执行方应按获批方法补模块检查。全选范围已完成时不重跑任务，selection_complete=true 仍不代表系统完成。
 

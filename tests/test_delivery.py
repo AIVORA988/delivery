@@ -395,6 +395,176 @@ class DeliveryTests(unittest.TestCase):
             d.new_run(self.root, "sample", "Overwrite")
         self.assertEqual(before, (plan.read_bytes(), record.read_bytes()))
 
+    def upgrade_fixture(self):
+        original = d.payload
+
+        def updated(folder=d.SKILL):
+            files = original(folder)
+            if folder.name == "delivery":
+                files["agents/openai.yaml"] += b"\n# Fixture package upgrade\n"
+            return files
+
+        with mock.patch.object(d, "payload", side_effect=updated):
+            self.assertEqual(d.initialize(self.root)["status"], "CONFIGURED")
+
+    def test_skill_upgrade_preserves_task_and_operation_checkpoint(self):
+        self.start_git()
+        before = d.guard(self.root, "sample", "T01")
+        original_workspace = copy.deepcopy(self.record["workspace"])
+        self.upgrade_fixture()
+        result = d.guard(self.root, "sample", "T01", changes_since=before["scope_checkpoint"])
+        self.assertTrue(result["execution_ready"], result["issues"])
+        self.assertEqual(result["baseline"], before["baseline"])
+        self.assertEqual(result["invocation_scope"]["status"], "PASS")
+        self.assertIn(".delivery/install.json", result["change_scope"]["maintenance"])
+        self.assertEqual(d.read_json(self.record_path)["workspace"], original_workspace)
+        (self.root / "outside.txt").write_text("Unauthorized business change", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T01", changes_since=before["scope_checkpoint"])
+        self.assertEqual(result["change_scope"]["outside"], ["outside.txt"])
+        self.assertEqual(result["invocation_scope"]["outside"], ["outside.txt"])
+
+    def test_skill_upgrade_preserves_received_business_result(self):
+        self.start_git()
+        self.finish_task("T01")
+        self.accept()
+        receipt = self.record["overall"]["accepted_sha256"]
+        self.upgrade_fixture()
+        result = d.guard(self.root, "sample")
+        self.assertTrue(result["delivery_ready"], result["issues"])
+        self.assertEqual(result["acceptance_sha256"], receipt)
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        self.assertFalse(d.guard(self.root, "sample")["delivery_ready"])
+
+    def test_skill_upgrade_handles_tracked_installation_files(self):
+        self.git("init", "--quiet")
+        d.initialize(self.root)
+        self.git("add", ".agents", ".delivery/install.json", ".delivery/project.json", "docs", "src.py", "README.md")
+        self.git("commit", "--quiet", "-m", "Tracked installation baseline")
+        self.start_git()
+        self.upgrade_fixture()
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        original = subprocess.run
+        for failure in (1, "timeout"):
+            def unavailable_tree(args, **kwargs):
+                if "ls-tree" in args:
+                    if failure == "timeout":
+                        raise subprocess.TimeoutExpired(args, 30)
+                    return subprocess.CompletedProcess(args, 1, b"", b"Unavailable tree")
+                return original(args, **kwargs)
+
+            with self.subTest(failure=failure), mock.patch.object(d.subprocess, "run", side_effect=unavailable_tree):
+                self.assertFalse(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.git("add", ".agents", ".delivery/install.json")
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+        self.git("commit", "--quiet", "-m", "Install maintenance only")
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_install_maintenance_does_not_hide_local_or_unlisted_files(self):
+        self.start_git()
+        self.upgrade_fixture()
+        unlisted = ".agents/skills/delivery/unlisted.txt"
+        (self.root / unlisted).write_text("Not managed by installation", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T01")
+        self.assertEqual(result["change_scope"]["outside"], [unlisted])
+        local = ".agents/skills/delivery/agents/openai.yaml"
+        if os.name != "nt":
+            path = self.root / local
+            original_mode = path.stat().st_mode
+            path.chmod(original_mode | 0o111)
+            self.assertIn(local, d.guard(self.root, "sample", "T01")["change_scope"]["outside"])
+            path.chmod(original_mode)
+        (self.root / local).write_text("Local edit, not an installed upgrade", encoding="utf-8")
+        result = d.guard(self.root, "sample", "T01")
+        self.assertIn(local, result["change_scope"]["outside"])
+        self.assertIn(".delivery/install.json", result["change_scope"]["outside"])
+
+    def test_skill_upgrade_still_invalidates_evidence_that_checks_the_skill(self):
+        self.start_git()
+        ref = ".agents/skills/delivery/agents/openai.yaml"
+        self.record["tasks"][0]["paths"].append(ref)
+        self.approve()
+        self.record["approval"]["paths"] = ["."]
+        self.save()
+        self.finish_task("T01")
+        self.record["evidence"][-1]["subjects"] = [
+            {"path": ref, "sha256": d.digest((self.root / ref).read_bytes())}]
+        self.save()
+        self.accept()
+        self.assertTrue(d.guard(self.root, "sample")["delivery_ready"])
+        self.upgrade_fixture()
+        result = d.guard(self.root, "sample")
+        self.assertEqual(result["check_results"]["C1"], "NOT_VERIFIED")
+        self.assertFalse(result["delivery_ready"])
+
+    def test_skill_upgrade_supports_an_unborn_repository(self):
+        self.start_git(commit=False)
+        self.upgrade_fixture()
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_skill_upgrade_supports_a_nested_project(self):
+        self.git("init", "--quiet")
+        project = self.root / "nested project"
+        project.mkdir()
+        for name in ("src.py", "README.md"):
+            shutil.copyfile(self.root / name, project / name)
+        d.initialize(project)
+        self.git("add", "nested project")
+        self.git("commit", "--quiet", "-m", "Nested installation baseline")
+        self.root = project
+        self.start()
+        self.approve()
+        self.upgrade_fixture()
+        self.assertTrue(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_install_maintenance_does_not_hide_staged_other_content(self):
+        self.start_git()
+        ref = ".agents/skills/delivery/agents/openai.yaml"
+        path = self.root / ref
+        original = path.read_bytes()
+        path.write_text("Unapproved staged bytes", encoding="utf-8")
+        self.git("add", ref)
+        path.write_bytes(original)
+        result = d.guard(self.root, "sample", "T01")
+        self.assertIn(ref, result["change_scope"]["outside"])
+        self.assertFalse(result["execution_ready"])
+
+    def test_install_maintenance_accepts_git_normalized_text_staging(self):
+        self.start_git()
+        self.upgrade_fixture()
+        ref = ".agents/skills/delivery/agents/openai.yaml"
+        path = self.root / ref
+        data = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+        path.write_bytes(data)
+        receipt_path = self.root / ".delivery/install.json"
+        receipt = d.read_json(receipt_path)
+        receipt["files"]["agents/openai.yaml"] = d.digest(data)
+        receipt_path.write_bytes(d.packed(receipt))
+        self.git("-c", "core.autocrlf=true", "add", ref, ".delivery/install.json")
+        result = d.guard(self.root, "sample", "T01")
+        self.assertTrue(result["execution_ready"], result["issues"])
+
+    def test_install_maintenance_requires_a_complete_valid_receipt(self):
+        self.start_git()
+        self.upgrade_fixture()
+        path = self.root / ".delivery/install.json"
+        valid = path.read_bytes()
+        for change in ("invalid_json", "missing_skill", "invalid_hash", "unknown_companion"):
+            with self.subTest(change=change):
+                receipt = json.loads(valid)
+                if change == "invalid_json":
+                    path.write_bytes(b"{")
+                else:
+                    if change == "missing_skill":
+                        del receipt["companions"]["delivery-run"]
+                    elif change == "invalid_hash":
+                        receipt["files"]["SKILL.md"] = "invalid"
+                    else:
+                        receipt["companions"]["other"] = {}
+                    path.write_bytes(d.packed(receipt))
+                result = d.guard(self.root, "sample", "T01")
+                self.assertFalse(result["execution_ready"])
+                self.assertIn(".delivery/install.json", result["change_scope"]["outside"])
+
     def test_init_installs_five_skills_and_only_the_knowledge_entry(self):
         before = (self.root / "src.py").read_bytes()
         result = d.initialize(self.root)
@@ -1510,6 +1680,10 @@ class DeliveryTests(unittest.TestCase):
         self.assertIn("FEATURE_SELECTION", self.codes(result))
         self.assertFalse(result["selection_ready"])
         self.assertFalse(result["delivery_ready"])
+        self.approve(["T01", "T02"])
+        selected = d.guard(self.root, "sample", "T01", ["F01"])
+        self.assertTrue(selected["execution_ready"], selected["issues"])
+        self.assertEqual(selected["next_tasks"], ["T01"])
 
     def test_feature_prerequisite_gates_tasks_without_a_direct_task_edge(self):
         self.start_features()

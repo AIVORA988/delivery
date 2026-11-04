@@ -1,6 +1,6 @@
 # 项目接入与维护
 
-脚本只使用 Python 3.10+ 标准库；Git 可用时通过只读查询核对实际修改范围，不添加 Python 运行依赖。没有 Python 时可按 Skill 规则和项目既有 Markdown 工作；说明工具检查尚未执行，不宣称 CONFIGURED。不要自动安装全局运行时、改全局 Agent 配置或扩大项目权限。
+脚本只使用 Python 3.10+ 标准库；Git 可用时通过只读查询核对实际修改范围，不添加 Python 运行依赖。缺少可用 Python 3.10+ 时可继续只读调查、Markdown 方案草稿及已获授权的知识整理，说明工具检查未执行，不宣称 CONFIGURED；不能进入依赖 Guard 的自动实施、返修或正式完成判定。保存原记录、缺失条件与恢复入口，运行时可用后重新校验再继续；不伪造过去的工作区起点或证据。不要自动安装全局运行时、改全局 Agent 配置或扩大项目权限。
 
 ## 初次接入
 
@@ -27,6 +27,8 @@ Windows 调用建议在 Python 后加 `-X utf8`，并按 UTF-8 解码子进程 J
 发现现有 Skill 的本地修改、符号链接、Windows reparse point 或不兼容记录时停止，报告冲突，不用 force 覆盖。重复接入相同内容不产生改动；升级仅替换与上次安装摘要一致的文件。源包移除文件时要求先人工审查，不自动删除未知文件。
 
 旧版单 / 双 Skill 安装可从完整分发重新 init 补齐；原 install.json 的 files 继续保存 delivery 摘要，companions 保存其余四个 Skill 摘要，schema_version 仍为 1。新版 check 会提示旧包缺少入口，init 完整预检后补齐；本地修改冲突则全程不写。知识正文不写入安装回执，不因编辑正文产生安装冲突。升级不改已有 plan / record、审批和证据。
+
+Git 范围核对将当前完整安装回执与实际摘要吻合的精确受管文件列为 maintenance，区分安装维护与业务修改；不整体忽略 .agents / .delivery，不重置原始工作区。未登记文件、本地修改、异常回执、可执行位或不同暂存内容不享受该处理。仅安装维护不使业务接收过期；若 Skill 本身是被检查成果，其 subjects / 交付文件版本仍照常绑定。回执是本地一致性依据，不是安装操作授权或签名证明。
 
 ## 项目基线
 
@@ -57,7 +59,7 @@ python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-
 python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-slice --task T01
 ```
 
-Feature 型 run 先由开发者单选或多选；核对完整选择后，再逐项检查任务，例如 `guard --project . --id store --features F01 F02 --task T01`。不指定 Feature 时仅查询状态，不能启动 Feature 子任务。取消或未回答不执行；宿主不支持多选弹框时使用编号列表。Python 不显示 GUI，详见 [记录契约](record.md)。
+Feature 型 run 按本轮指令确定一个或多个模块，已明确指定时不重复询问；未指定或有歧义时收集选择，再逐项检查任务，例如 `guard --project . --id store --features F01 F02 --task T01`。模块须获得完整授权，授权后本轮可只执行指定任务。不指定 Feature 时仅查询状态，不能启动 Feature 子任务。取消或未回答不执行；宿主不支持多选弹框时使用编号列表。Python 不显示 GUI，详见 [记录契约](record.md)。
 
 不带 --task 用于审批材料和整体验收；带 --task 用于具体任务开始 / 恢复前校验。`record_valid` 只表示记录自洽；`execution_ready` 在指定任务时仅表示该任务就绪，否则表示存在可执行任务；`batch_complete` 表示当前批准批次完成；`delivery_ready` 表示本期整体记录门槛齐备。它们都不验证业务语义、审批身份或报告真实性。用户无需手工运行命令或编辑内部字段。
 

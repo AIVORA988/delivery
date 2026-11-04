@@ -24,6 +24,8 @@ The **Loop** follows task dependencies through implementation, verification, fai
 
 Use an Agent Skills-compatible tool in the target project. The Python tools require **Python 3.10+** and only the standard library. Skill discovery and invocation depend on the host.
 
+Without Python, investigation, Markdown planning drafts and authorized knowledge work can continue. Automated implementation, repair and final completion decisions wait until Guard can run; do not install a global runtime automatically.
+
 ### 1. Install
 
 ```text
@@ -73,7 +75,7 @@ Detailed diagrams (Chinese): [Architecture](docs/architecture.png) · [Approval]
 
 Ordinary plans follow task dependencies: **implement → verify → classify failures → repair within authorization → reverify**. A task becomes `DONE` only with valid required evidence. Missing conditions, decision conflicts, exhausted limits and unknown external outcomes are recorded with recovery details, rather than retried blindly.
 
-Feature projects first select one or more approved modules. Unfinished prerequisites must be explicitly included or already have passed module acceptance; selection never expands scope automatically. Execution is serial by default: finish the current Feature's tasks and module checks before advancing. Hosts without native multi-select use a numbered conversation list. Cancellation or no response starts no work.
+Feature authorization covers a complete module; once authorized, the current request may execute only specified tasks. Use Feature IDs or uniquely matching names already stated in the current request without asking again. Ask for a selection only when the scope is missing or ambiguous. Unfinished prerequisites must be explicitly included or already have passed module acceptance; selection never expands scope automatically. Execution is serial by default: finish the current Feature's tasks and module checks before advancing. Hosts without native multi-select use a numbered conversation list. Cancellation or no response starts no work.
 
 [![Feature delivery batches: Task Loop, module checks, handoff and overall acceptance (Chinese)](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
 
@@ -83,7 +85,7 @@ Resume an ordinary plan through the original execution entry:
 $delivery-run Continue the approved plan. First check the workspace, evidence and cumulative usage.
 ```
 
-For a Feature plan, invoke `$delivery-feature-run` and select the current scope again. Both reuse the original `plan.md` / `record.json` and valid authorization, retain approval history and cumulative limits, and skip still-valid DONE tasks. **Selected-scope completion, approval-batch completion and overall delivery are separate decisions.** [Interaction and recovery details](docs/usage.md) (Chinese)
+For a Feature plan, invoke `$delivery-feature-run` with the current scope. Do not ask again when it is explicit, or silently reuse the previous selection; ask only when missing or ambiguous. Both reuse the original `plan.md` / `record.json` and valid authorization, retain approval history and cumulative limits, and skip still-valid DONE tasks. **Selected-scope completion, approval-batch completion and overall delivery are separate decisions.** [Interaction and recovery details](docs/usage.md) (Chinese)
 
 ## Acceptance and Guard boundaries
 
@@ -95,6 +97,8 @@ For a Feature plan, invoke `$delivery-feature-run` and select the current scope 
 | Final receipt | Generate a fingerprint after legitimate task completion, required task / module / overall checks and handoff. Bind evidence, delivery files and Git-visible result changes; actual acceptance must cover the current version and cannot be carried forward automatically |
 
 Repairing a completed dependency chain requires reopening affected descendants and invalidating affected checks before resuming under the existing authorization and cumulative limits. The stronger result binding may invalidate older Git-backed acceptance fingerprints after an upgrade; tasks and approvals remain intact, but acceptance must be checked against the current result. [Execution and compatibility rules](skills/delivery/references/execution.md) (Chinese)
+
+Managed maintenance verified against a complete install receipt and actual file hashes is reported separately. A pure Skill upgrade does not count as an unauthorized business change or invalidate a business receipt. Unlisted files, local edits and different staged content remain checked; evidence and deliverables that check the Skill itself still bind its version.
 
 Approved acceptance methods may include source review, builds, tests, local execution, Mock or live environments. Conclusions apply only to verified coverage. Explicitly approved follow-up validation remains `NOT_VERIFIED`; required current-scope checks cannot be silently deferred. Separate module passes do not replace complete business-path, failure and regression checks.
 

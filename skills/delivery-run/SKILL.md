@@ -9,7 +9,7 @@ metadata:
 
 执行入口，不重新规划，不将本 Skill 的调用当作审批。读取项目规则与原 run；未指定 run 且候选不唯一时才请用户选择。核对实际审批来源、当前基线、范围、依赖、工作区及累计用量；没有有效审批则回到 [delivery](../delivery/SKILL.md) 的关口，保留已有成果，不伪造批准。
 
-初次接入或升级用共享 [setup.md](../delivery/references/setup.md)，记录规则用 [record.md](../delivery/references/record.md)。scenario=feature 时转 [delivery-feature-run](../delivery-feature-run/SKILL.md) 选择范围，不能在此直接执行全部 Feature。旧版无 scenario 的合法已批准记录保留原摘要与计数规则，不擅自改写基线；统一限额与证据缺陷校验同样适用。
+初次接入或升级用共享 [setup.md](../delivery/references/setup.md)，记录规则用 [record.md](../delivery/references/record.md)。缺少可用 Python 3.10+ 时保留原 run 与恢复入口，停在执行边界，仅按接入规则继续允许的调查或草稿，不绕过 Guard。scenario=feature 时转 [delivery-feature-run](../delivery-feature-run/SKILL.md) 确定范围，不能在此直接执行全部 Feature。旧版无 scenario 的合法已批准记录保留原摘要与计数规则，不擅自改写基线；统一限额与证据缺陷校验同样适用。
 
 读取唯一 [execution.md](../delivery/references/execution.md)，按已批准任务依赖运行 Task Loop。每个任务开始 / 恢复前用配套脚本 `guard --project <项目> --id <原需求ID> --task <TaskID>`，须退出 0 且 execution_ready=true；检查当前实际操作仍在授权范围。PENDING 只有在实际依赖满足后才转 READY。
 

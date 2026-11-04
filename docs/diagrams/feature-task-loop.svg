@@ -32,7 +32,7 @@
 <text x="94" y="74" class="title">Feature 分批交付闭环</text>
 <text x="94" y="106" class="subtitle">明确“本轮所选完成”与“本期整体完成”是两种不同状态</text>
 <rect class="card" x="442" y="165" width="716" height="98" rx="20"/>
-<text x="800" y="209" class="heading center">选择一个或多个已批准 Feature</text>
+<text x="800" y="209" class="heading center">确定本轮一个或多个已批准 Feature</text>
 <text x="800" y="245" class="muted center">未完成前置须显式同选；取消或未回答不执行</text>
 <path class="edge" d="M800 263V294H333V314"/>
 <rect class="card" x="110" y="322" width="446" height="132" rx="20"/>
@@ -64,7 +64,7 @@
 <path class="edge" d="M663 869H438V935"/><path class="edge" d="M937 869H1165V935"/>
 <text x="537" y="856" class="body" style="font-weight:700;fill:#3478aa">否</text><text x="1043" y="856" class="body" style="font-weight:700;fill:#3478aa">是</text>
 <rect class="card" x="180" y="943" width="480" height="61" rx="16"/>
-<text x="420" y="982" class="body center" style="font-weight:700">结束本轮 · 下次重新选择</text>
+<text x="420" y="982" class="body center" style="font-weight:700">结束本轮 · 下次按指令确定范围</text>
 <rect x="938" y="943" width="480" height="61" rx="16" fill="#e3f8ef" stroke="#7ad4bc" stroke-width="1.5"/>
 <text x="1178" y="982" class="body center" style="font-weight:700;fill:#108876">系统整体验收与当前版本接收</text>
 <text x="800" y="1029" class="center" style="font-size:16px;fill:#7190a4">阻塞或到限：保存原因与入口，解除后按原记录恢复 · Feature 完成不等于系统交付</text>
