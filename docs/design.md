@@ -30,7 +30,7 @@ Guard 支持 --task 校验具体任务，Feature 型计划还需 --features 确�
 
 ## 规划、执行与知识闭环
 
-delivery / delivery-feature 分别规划普通需求与全新中大型项目，后者必须基于架构与详细设计。delivery-run 执行普通方案；delivery-feature-run 在整体有效审批后让开发者单选或多选 Feature，默认按依赖串行，每个 Feature 内运行共享 Task Loop。每 Feature 最多 30 个子任务，有独立模块验收；进度与完成状态从原任务和证据推导，不另建状态库。选择只缩小原授权，不构成新审批。
+delivery / delivery-feature 分别规划普通需求与全新中大型项目，后者基于用户提供的详细设计，一份文件即可，支持附件，不要求独立架构文档或固定目录。delivery-run 执行普通方案；delivery-feature-run 在整体有效审批后让开发者单选或多选 Feature，默认按依赖串行，每个 Feature 内运行共享 Task Loop。每 Feature 最多 30 个子任务，有独立模块验收；进度与完成状态从原任务和证据推导，不另建状态库。选择只缩小原授权，不构成新审批。
 
 delivery-bootstrap 是用户显式触发的存量知识构建入口。五个 Skill 同包部署，共用一份 [知识规则](../skills/delivery/references/knowledge.md)，不增加 Agent、阶段或审批体系。Bootstrap 是 Agent 按范围分析源码和资料，不是 Python 自动理解代码的引擎。
 

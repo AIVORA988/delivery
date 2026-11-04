@@ -49,7 +49,7 @@ Feature 场景每项 task 必须有唯一 feature 字段，指向定义的 Featu
 ```json
 {
   "scenario": "feature",
-  "contracts": ["docs/design/store.md"],
+  "contracts": [".delivery/runs/store/inputs/商城详细设计.md"],
   "features": [
     {"id": "F01", "title": "商品中心", "depends_on": [],
      "checks": [{"id": "FC01", "kind": "REQUIRED", "method": "本地模块集成测试", "expected": "商品链路符合约定"}]}
@@ -63,7 +63,7 @@ Feature 场景每项 task 必须有唯一 feature 字段，指向定义的 Featu
 
 公共约定可直接写 plan，不强制另建契约文件。引用现有文件作为审批依据时登记 `contracts`，例如 `["docs/api/orders.md"]`；路径必须唯一、存在且是文件，不能引用本需求的可变 record.json。Guard 读取实际文件内容计算摘要并纳入 Graph，不能以手填哈希声明其未变更。契约路径或内容改变，当前 / 历史审批和旧证据均不能证明新基线成立。
 
-数组顺序不影响摘要；不登记契约且无 scenario 的历史记录及空 contracts 保持旧摘要不变。Feature 执行必须登记实际架构与详细设计文件，空 contracts 不放行；文件是否充分仍由 Agent 和审批人判断。任务进度和普通知识更新仍不改变 Graph。只登记稳定规范输入，不登记待生成产物或持续更新的说明，执行对象由 evidence.subjects 绑定。Guard 不自动发现传递引用或判断语义兼容，登记范围与变更影响仍由 Agent 分析。
+数组顺序不影响摘要；不登记契约且无 scenario 的历史记录及空 contracts 保持旧摘要不变。Feature 执行必须登记实际详细设计文件或附件的项目内稳定副本，单个文件即可，不要求独立架构文档或固定目录，空 contracts 不放行；上述路径仅为示例，文件是否充分仍由 Agent 和审批人按内容判断。任务进度和普通知识更新仍不改变 Graph。只登记稳定规范输入，不登记待生成产物或持续更新的说明，执行对象由 evidence.subjects 绑定。Guard 不自动发现传递引用或判断语义兼容，登记范围与变更影响仍由 Agent 分析。
 
 ### 任务与验收
 

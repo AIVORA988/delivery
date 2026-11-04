@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
 <title id="title">日常研发双路径 / Two development paths</title>
-<desc id="desc">Ordinary requirements use delivery then delivery-run; new medium or large projects use delivery-feature with architecture and detailed design, then explicitly select approved Features in delivery-feature-run. Both share one approval gate, overall acceptance and ongoing knowledge capture. Selection does not expand authorization.</desc>
+<desc id="desc">Ordinary requirements use delivery then delivery-run; new medium or large projects use delivery-feature with one detailed design, including an attachment, then explicitly select approved Features in delivery-feature-run. No separate architecture document or fixed input directory is required. Both share one approval gate, overall acceptance and ongoing knowledge capture. Selection does not expand authorization.</desc>
 <defs>
   <linearGradient id="header"><stop stop-color="#0b1f35"/><stop offset="1" stop-color="#145969"/></linearGradient>
   <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f3f8ff"/><stop offset="1" stop-color="#e8f4f7"/></linearGradient>
@@ -48,7 +48,7 @@
 <rect x="859" y="321" width="58" height="38" rx="19" fill="#f0ecff"/><text x="888" y="347" class="small center purple">B</text>
 <text x="934" y="351" class="heading">全新中大型项目</text>
 <text x="864" y="391" class="muted">规划入口</text><text x="988" y="391" class="skill purple">$delivery-feature</text>
-<text x="864" y="435" class="body">输入：已确认的架构与详细设计</text>
+<text x="864" y="435" class="body">输入：一份详细设计（支持附件）</text>
 <text x="864" y="472" class="body">按 Feature 拆分：每项 ≤ 30 个任务</text>
 <rect x="1335" y="457" width="142" height="38" rx="19" fill="#f0ecff"/><text x="1406" y="482" class="small center purple">先定契约</text>
 <path class="edge" d="M425 518V564"/><path class="edge" d="M1175 518V564"/>

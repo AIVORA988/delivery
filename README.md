@@ -45,9 +45,9 @@ Agent 按 `inspect → init → check` 接入，将五个 Skill 安装到 `.agen
 | --- | --- | --- |
 | 简单 Bug / 低风险功能调整或新增 | `$delivery 修复订单状态筛选异常。` | 整个需求 ≤3 |
 | 存量系统复杂需求 | `$delivery 为现有商城新增拆单发货功能。` | 整个需求 ≤15 |
-| 全新中大型项目 | `$delivery-feature 根据 docs/design 下的架构与详细设计，规划商城系统，按 Feature 拆分任务。` | 每 Feature ≤30 |
+| 全新中大型项目 | `$delivery-feature 根据我提供的详细设计，规划商城系统，按 Feature 拆分任务。` | 每 Feature ≤30 |
 
-普通入口自动判断设计深度；支付、权限、迁移、公共契约或共享一致性变更按风险充分设计，不因改动小而简化。新中大型项目须提供架构与详细设计。任务上限包含已完成任务，不按审批批次重算；超限时重新划分合理边界，不强行合并任务。
+普通入口自动判断设计深度；支付、权限、迁移、公共契约或共享一致性变更按风险充分设计，不因改动小而简化。新中大型项目提供一份详细设计即可，可直接上传附件，无需另交架构文档或放到 `docs/design`；Agent 保存可追溯的项目内副本并纳入审批依据，按内容核对必要缺口。任务上限包含已完成任务，不按审批批次重算；超限时重新划分合理边界，不强行合并任务。
 
 ### 3. 审批执行
 
@@ -67,7 +67,7 @@ Agent 先提交方案、任务依赖、验收标准、操作范围和有限执�
 | --- | --- |
 | [`$delivery`](skills/delivery/SKILL.md) | 普通 / 存量需求规划，形成方案、任务与审批材料 |
 | [`$delivery-run`](skills/delivery-run/SKILL.md) | 执行或恢复已批准的普通方案，按依赖运行 Task Loop |
-| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | 基于架构与详细设计规划新中大型项目，明确 Feature、接口契约和两层依赖 |
+| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | 基于详细设计（支持附件）规划新中大型项目，明确 Feature、接口契约和两层依赖 |
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | 确认本轮一个或多个已批准 Feature，逐模块执行子任务与模块验收 |
 | [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | 用户明确要求时集中构建存量知识；不修改业务代码，不是研发前置步骤 |
 

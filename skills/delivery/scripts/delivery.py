@@ -678,7 +678,7 @@ def guard(root: Path, run_id: str, task_id: str | None = None,
         for owner in [*tasks.values(), overall, *features.values()])
     design_ready = scenario != "feature" or bool(contracts)
     if not design_ready:
-        waiting.append("Bind the architecture and detailed design files in contracts before execution")
+        waiting.append("Bind the detailed design file or its project-local attachment copy in contracts before execution")
     acceptance_defined = acceptance_defined and design_ready
     if not acceptance_defined:
         waiting.append("Define task and overall required acceptance before execution")

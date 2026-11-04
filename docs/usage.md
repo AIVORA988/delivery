@@ -8,7 +8,7 @@ delivery 是面向 AI Agent 的轻量级研发交付工作流。使用者负责�
 | --- | --- | --- | --- |
 | 简单 Bug / 功能调整或新增 | `$delivery` | `$delivery-run` | 整个 Graph ≤3 |
 | 存量复杂需求 | `$delivery` | `$delivery-run` | 整个 Graph ≤15 |
-| 全新中大型项目 | `$delivery-feature` + 架构与详细设计 | `$delivery-feature-run` | 每 Feature ≤30 |
+| 全新中大型项目 | `$delivery-feature` + 详细设计（可上传附件） | `$delivery-feature-run` | 每 Feature ≤30 |
 
 普通需求由 Agent 自动判断方案深度；所有新需求均先规划、拆分再审批。任务计数包含 DONE，不按当前批准批次重置。超过上限重新划分合理边界，不隐藏独立任务。
 
@@ -78,11 +78,11 @@ Agent 在每项任务开始 / 恢复前使用 `guard --task <任务ID>` 核对�
 ### Feature 项目的完整交互
 
 ```text
-$delivery-feature 根据 docs/design/商城详细设计.md，规划商城小程序，
+$delivery-feature 根据我上传的详细设计附件，规划商城小程序，
 明确商品 F01、订单 F02、支付 F03 的边界、子任务、依赖和验收，等待审批。
 ```
 
-Agent 先读取包含架构的详细设计，核对缺口、按需复用知识，在同一 plan / Graph 规划本期全部 Feature 与任务。实际稳定设计文件纳入 contracts；附件先保存在约定项目路径并保留来源。空知识不阻塞新项目规划，首个可运行闭环仍须验证。每个 Feature 最多 30 个子任务，明确提供方 / 消费方、业务前置、模块验收和最终集成。
+提供一份详细设计即可，不强制另交架构文档，也不要求放到 docs/design。Agent 读取附件或已有文件，按内容核对关键缺口、按需复用知识，在同一 plan / Graph 规划本期全部 Feature 与任务。附件由 Agent 保存到项目已有资料目录或本需求的 .delivery/runs/<需求ID>/inputs/ 并保留来源，用户无需手动整理；已有项目内文件原位引用。实际稳定设计文件纳入 contracts，单个文件即可。空知识不阻塞新项目规划，首个可运行闭环仍须验证。每个 Feature 最多 30 个子任务，明确提供方 / 消费方、业务前置、模块验收和最终集成。
 
 可先要求“补充重复下单、库存不足与支付回调幂等的设计”，修订后再回复：
 

@@ -1,6 +1,6 @@
 ---
 name: delivery-feature
-description: 基于用户提供的架构与详细设计规划全新中大型系统，定义 Feature 边界、接口契约、依赖和每 Feature 最多 30 个任务，提交整体方案人工审批。批准后路由到 delivery-feature-run，不在规划阶段实施业务代码。
+description: 基于用户提供的详细设计（支持附件）规划全新中大型系统，定义 Feature 边界、接口契约、依赖和每 Feature 最多 30 个任务，提交整体方案人工审批。批准后路由到 delivery-feature-run，不在规划阶段实施业务代码。
 metadata:
   version: "V1.0"
 ---
@@ -9,9 +9,11 @@ metadata:
 
 这是 Feature 规划入口，不是执行入口。复用七阶段，负责 Mission → Explore → Contract → Graph 与原人工审批关口；不增加第二套审批、计划或任务库。
 
-读取项目规则、用户提供的架构与详细设计、原计划和工作区。按 [setup.md](../delivery/references/setup.md) 接入，按 [knowledge.md](../delivery/references/knowledge.md) 判断空库或按需复用。缺少必要设计时列出缺口，停在规划；不自行把猜测或未确认架构当成批准输入。附件先落实为项目内可追溯的稳定设计文件，保留来源，不默默改变用户设计。
+读取项目规则、用户提供的详细设计、原计划和工作区。一份详细设计即可，支持直接上传附件或引用已有文件；不要求同时提供独立架构文档，也不要求用户放入 docs/design 或其他固定目录。按 [setup.md](../delivery/references/setup.md) 接入，按 [knowledge.md](../delivery/references/knowledge.md) 判断空库或按需复用。按内容复核必要设计，关键缺口列出并停在规划；不因文档数量或位置阻塞，也不自行把猜测或未确认架构当成批准输入。
 
-按共享 [planning.md](../delivery/references/planning.md) 复核业务、架构、接口、数据、异常、并发、一致性、兼容、回退与验收。新建记录使用 [共享脚本](../delivery/scripts/delivery.py) 的 `new --project <项目> --id <需求ID> --title <标题> --scenario feature`。引用的架构与详细设计实际文件必须登记到 contracts，纳入审批摘要；记录结构见 [record.md](../delivery/references/record.md)。
+附件由 Agent 读取并保存为项目内可追溯的稳定副本，优先沿用项目已有资料目录，否则使用本需求的 .delivery/runs/<需求ID>/inputs/；不要求用户自行搬放或另写文档。保留附件来源和原意；无法读取时明确说明并请求可读材料，不补造内容。已有项目内文件原位引用，避免重复副本。
+
+按共享 [planning.md](../delivery/references/planning.md) 复核业务、架构、接口、数据、异常、并发、一致性、兼容、回退与验收。新建记录使用 [共享脚本](../delivery/scripts/delivery.py) 的 `new --project <项目> --id <需求ID> --title <标题> --scenario feature`。将实际引用的详细设计文件或附件稳定副本登记到 contracts，纳入审批摘要，单个文件即可；用户另有架构或接口资料时按实际引用补充，不强制补齐第二份文档。记录结构见 [record.md](../delivery/references/record.md)。
 
 先固定本期完整 Feature 和任务定义，再分批实施；超过边界重新拆分合理需求或 Feature，不隐藏独立任务。每个 Feature 有稳定 ID、业务目标、接口提供方 / 消费方、必要依赖和模块验收 checks；每项任务唯一归属一个 Feature，每个 Feature 1-30 项任务，DONE 也计数。任务跨 Feature 依赖必须与 Feature 依赖一致，两层依赖均无环。保留整体业务链路与最终集成验收；Feature 不是按文件夹机械切分。
 

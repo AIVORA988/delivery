@@ -21,7 +21,7 @@ macOS / Linux 可使用 python3，Windows 可使用 py -3。也可下载 GitHub 
 ## 使用入口
 
 - `$delivery`：普通 / 存量需求规划，自动判断简短或完整方案，等待审批；任务上限 3 / 15。
-- `$delivery-feature`：全新中大型项目规划，必须提供架构与详细设计，每 Feature 最多 30 个子任务。
+- `$delivery-feature`：全新中大型项目规划，提供一份详细设计即可，支持直接上传附件，不要求独立架构文档或固定目录，每 Feature 最多 30 个子任务。
 - `$delivery-run`：执行或恢复已批准的普通方案，按任务依赖 Loop。
 - `$delivery-feature-run`：确认本轮单个或多个 Feature，按依赖逐模块执行各自 Task Loop。
 - `$delivery-bootstrap`：用户明确要求时集中分析存量项目，可指定模块并按索引恢复；不修改业务代码。

@@ -1,4 +1,4 @@
 interface:
-  display_name: "delivery V1.0"
+  display_name: "delivery"
   short_description: "规划普通与存量系统需求，按复杂度设计方案、拆分任务并提交人工审批"
   default_prompt: "使用 $delivery 调查当前需求，形成适当深度的方案、任务拆分和验收标准，等待我审批后交由执行入口实施。"

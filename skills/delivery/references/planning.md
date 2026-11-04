@@ -74,7 +74,7 @@ record 是任务与验收的结构化主定义，plan 按同一 ID 展示审批�
 
 ### Feature 规划与跨模块分批实施
 
-全新中大型项目通过 delivery-feature，用户提供架构与详细设计；关键缺口先解决，不推断成已确认设计。稳定设计路径登记 contracts。Feature 定义 id、title、depends_on、模块 checks；每项 task 唯一登记 feature，跨 Feature 的任务依赖须由 Feature 依赖链覆盖。两层图无环，每个 Feature 至少一个任务及可实施模块验收。最终集成放入相关 Feature 的任务及 overall checks，不新增阶段。Feature 归属、依赖与模块验收进入 Graph 摘要，不是可任意更改的标签。
+全新中大型项目通过 delivery-feature，用户提供一份详细设计即可，支持附件或已有文件，不要求独立架构文档或 docs/design 等固定目录。按内容解决关键缺口，不推断成已确认设计。附件由 Agent 保存可追溯的项目内稳定副本，实际设计路径登记 contracts，单个文件即可。Feature 定义 id、title、depends_on、模块 checks；每项 task 唯一登记 feature，跨 Feature 的任务依赖须由 Feature 依赖链覆盖。两层图无环，每个 Feature 至少一个任务及可实施模块验收。最终集成放入相关 Feature 的任务及 overall checks，不新增阶段。Feature 归属、依赖与模块验收进入 Graph 摘要，不是可任意更改的标签。
 
 整体方案批准后，delivery-feature-run 允许开发者单选或多选已授权 Feature；未完成前置须同选或已经完成，未选范围不追加执行。默认按依赖串行，每个 Feature 内连续执行多个子任务及模块验收；Feature 完成不等于系统完成。
 

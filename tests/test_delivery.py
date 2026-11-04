@@ -404,6 +404,8 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(set(result["skills"]), expected)
         self.assertTrue((installed / "delivery-bootstrap/SKILL.md").is_file())
         self.assertTrue((installed / "delivery/references/knowledge.md").is_file())
+        metadata = (installed / "delivery/agents/openai.yaml").read_text(encoding="utf-8")
+        self.assertIn('  display_name: "delivery"\n', metadata)
         knowledge = self.root / "docs/knowledge"
         self.assertEqual([p.name for p in knowledge.iterdir()], ["README.md"])
         checked = d.check(self.root)
@@ -1434,6 +1436,23 @@ class DeliveryTests(unittest.TestCase):
         del self.record["tasks"][0]["feature"]
         self.save()
         self.assertFalse(d.guard(self.root, "sample", "T01")["execution_ready"])
+
+    def test_feature_accepts_one_detailed_design_at_custom_or_run_input_path(self):
+        self.start_features()
+        for path in ("uploads/商城详细设计.md", ".delivery/runs/sample/inputs/商城详细设计.md"):
+            with self.subTest(path=path):
+                design = self.root / path
+                design.parent.mkdir(parents=True, exist_ok=True)
+                design.write_text("# 商城详细设计\n商品、订单和支付的接口与验收。\n", encoding="utf-8")
+                self.record["contracts"] = [path]
+                self.approve(["T01", "T02", "T03", "T04"])
+                result = d.guard(self.root, "sample", "T01", ["F01"])
+                self.assertTrue(result["record_valid"], result["issues"])
+                self.assertTrue(result["execution_ready"], result["waiting"])
+                design.write_text("# 修订后的商城详细设计\n", encoding="utf-8")
+                changed = d.guard(self.root, "sample", "T01", ["F01"])
+                self.assertNotEqual(result["baseline"], changed["baseline"])
+                self.assertFalse(changed["execution_ready"])
 
     def test_feature_design_and_module_acceptance_cannot_be_omitted(self):
         self.start_features()

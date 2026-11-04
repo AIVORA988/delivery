@@ -39,9 +39,9 @@ The agent follows `inspect → init → check`, installs the Skills in `.agents/
 | --- | --- | --- |
 | Small bug fix or low-risk feature change | `$delivery Fix the order-status filter.` | 3 per run |
 | Complex existing-system change | `$delivery Add split shipments to this store.` | 15 per run |
-| New medium or large system | `$delivery-feature Plan the store from the architecture and detailed design in docs/design, organized by Feature.` | 30 per Feature |
+| New medium or large system | `$delivery-feature Plan the store from the detailed design I provide, organized by Feature.` | 30 per Feature |
 
-The ordinary entry chooses design depth based on risk. Payment, authorization, migrations, public contracts and shared consistency rules need appropriate design even for small patches. New medium or large projects require architecture and detailed-design documents. Limits include completed tasks across approval batches; split oversized scopes into reasonable boundaries rather than combining unrelated work.
+The ordinary entry chooses design depth based on risk. Payment, authorization, migrations, public contracts and shared consistency rules need appropriate design even for small patches. For new medium or large projects, one detailed design is enough and can be uploaded as an attachment; no separate architecture document or `docs/design` location is required. The agent keeps a traceable project-local copy for approval and checks for essential gaps in its contents. Limits include completed tasks across approval batches; split oversized scopes into reasonable boundaries rather than combining unrelated work.
 
 ### 3. Approve and execute
 
@@ -61,7 +61,7 @@ Request revisions when needed, then review the updated plan. Once approval permi
 | --- | --- |
 | [`$delivery`](skills/delivery/SKILL.md) | Plan ordinary and existing-system requirements; prepare tasks and approval materials |
 | [`$delivery-run`](skills/delivery-run/SKILL.md) | Execute or resume an approved ordinary plan through the dependency-aware Task Loop |
-| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from architecture and detailed design, with Features, interface contracts and both dependency graphs |
+| [`$delivery-feature`](skills/delivery-feature/SKILL.md) | Plan a new medium or large system from a detailed design, including an attachment, with Features, interface contracts and both dependency graphs |
 | [`$delivery-feature-run`](skills/delivery-feature-run/SKILL.md) | Confirm one or more approved Features; complete their tasks and module acceptance in order |
 | [`$delivery-bootstrap`](skills/delivery-bootstrap/SKILL.md) | Build existing-project knowledge on explicit request; no application edits or prerequisite development stage |
 
