@@ -81,7 +81,13 @@ Agent 先提交方案、任务依赖、验收标准、操作范围和有限执�
 
 普通需求按任务依赖执行 **实施 → 验证 → 失败分类 → 授权内修复 → 重验**。必要证据有效才标记 `DONE` 并推进依赖任务；缺少必需条件、需要决策、到限或外部结果不明时保存原因与恢复入口，不盲目重试。
 
+### Feature 选择与执行交互
+
 Feature 项目按完整模块授权，授权后本轮可只执行指定子任务。用户本轮已明确模块 ID 或唯一名称时直接校验，不重复选择；未指定或有歧义时再收集选择。未完成前置须显式同选，或已通过模块验收；不擅自补选。默认按依赖串行，先完成当前 Feature 的子任务与模块验收，再推进下一个。无原生多选控件时使用对话编号列表；取消或未回答不执行。
+
+[![delivery-feature-run 多选 Feature 交互图：规划审批后进入执行入口，确认单个或多个 Feature，校验依赖与授权，再按依赖串行执行](docs/diagrams/feature-run-interaction.png)](docs/diagrams/feature-run-interaction.png)
+
+### 分批交付与恢复
 
 [![Feature 分批交付闭环：子任务、模块验收、本轮交接与系统整体验收](docs/diagrams/feature-task-loop.svg)](docs/diagrams/feature-task-loop.svg)
 
