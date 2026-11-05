@@ -123,7 +123,7 @@ subjects 绑定本次检查的源码、配置或产物；报告记录实际命�
 
 Feature 型计划不传 --features 时只做状态审查，next_tasks 为空、execution_ready=false，即便 --task 指向已批准任务也不能借此绕过选择。本轮已明确 ID 或唯一可定位名称时直接采用；缺失或有歧义时才收集选择，不重复询问已明确范围。执行方传 `guard --project <项目> --id <原需求ID> --features F01 F02`，每任务再加 `--task T01`。所选 ID 唯一且存在，当前授权须覆盖该模块全部未完成子任务；普通需求的任务级分批授权不等同 Feature 完整模块授权。完整授权后本轮可只执行指定任务，不能自动批准其他任务。未完成前置须同选或已 complete，不自动扩大选择。选择不改审批、Graph 或任何文件。
 
-输出 selected_features、按依赖排列的 feature_order、selection_ready、selection_complete 和 features 进度。next_tasks 仅来自排序后首个未完成 Feature，避免多选变成隐式并行；具体 --task 仍须处于候选中。模块验收待执行时可能 selection_ready=true 而 execution_ready=false，因为没有新的子任务可启动，执行方应按获批方法补模块检查。全选范围已完成时不重跑任务，selection_complete=true 仍不代表系统完成。
+输出 selected_features、按依赖排列的 feature_order、selection_ready、selection_complete 和 features 进度。selection_ready 只校验传入范围，不表示用户已完成选择；执行入口须先取得完整提交，不能用首项通过 Guard 代替选择完成。next_tasks 仅来自排序后首个未完成 Feature，避免多选变成隐式并行；具体 --task 仍须处于候选中。模块验收待执行时可能 selection_ready=true 而 execution_ready=false，因为没有新的子任务可启动，执行方应按获批方法补模块检查。全选范围已完成时不重跑任务，selection_complete=true 仍不代表系统完成。
 
 Git 起点可用且具体任务可执行时，输出 scope_checkpoint，包含 run、baseline、features、task、workspace。执行方在操作前把完整 Guard JSON 临时保存在当前 run，操作后用原选择 / 任务加 `--changes-since <项目相对JSON路径>`；程序读取其中的 scope_checkpoint，核对运行、基线、选择、任务和原 HEAD，再比较暂存 / 工作区指纹。invocation_scope 为 PASS / FAIL / NOT_VERIFIED；未传入为 NOT_CHECKED，不等于本轮范围通过。范围限于该任务 paths，累计 change_scope 的批准批次与历史 DONE 语义不变。无效 / 过期检查点产生 SCOPE_CHECKPOINT，越界产生 INVOCATION_SCOPE，均阻止执行和交付；缺文件或缺检查点为输入错误。它是临时只读校验输入，不写 record、不改变 Graph，也不自动执行或认证检查点来源；丢失后先人工核实，不以当前状态补造过去。具体操作与恢复次序见 [execution.md](execution.md)。
 

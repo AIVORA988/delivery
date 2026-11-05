@@ -35,7 +35,7 @@ Git 起点可用时，将该次完整 Guard JSON 输出保存到本 run 的临�
 
 ### Feature 外层与任务内层
 
-delivery-feature-run 直接采用本轮明确的 Feature ID 或唯一可定位的名称；范围缺失或有歧义时才收集单选或多选，取消 / 未答不执行。所选模块须获完整授权，完整授权后仍遵守本轮指定子任务或单步停止限制。用 --features 校验 selection_ready，依 feature_order 串行推进；所选未完成前置须同选，遗漏不自动补入。当前 Feature 的子任务按上文 Task Loop 执行，完成记录仅写原 record。全部子任务 DONE 后执行 Feature 的 checks 并保存真实证据，模块 complete 后才推进依赖它的 Feature。没有新任务但模块检查未完成时应做已批准模块验收，不把 execution_ready=false 误解为模块验收已通过。
+delivery-feature-run 直接采用本轮明确的 Feature ID 或唯一可定位的名称，不重复询问；范围缺失或有歧义时，按该入口的“本轮选择”规则，优先原生多选统一提交，否则一次输入全部 ID，完整提交后才校验与执行，首项或临时选择不启动任务，取消 / 未答不执行。所选模块须获完整授权，完整授权后仍遵守本轮指定子任务或单步停止限制。用 --features 校验 selection_ready，依 feature_order 串行推进；所选未完成前置须同选，遗漏不自动补入。当前 Feature 的子任务按上文 Task Loop 执行，完成记录仅写原 record。全部子任务 DONE 后执行 Feature 的 checks 并保存真实证据，模块 complete 后才推进依赖它的 Feature。没有新任务但模块检查未完成时应做已批准模块验收，不把 execution_ready=false 误解为模块验收已通过。
 
 selection_complete 仅代表本轮选择完成，batch_complete 仍代表原批准任务批次完成。阶段交接更新知识和 handoff.resume；下次按本轮指令确定范围，不默默沿用旧选择，也不重复询问已明确范围，保留有效进度与用量。全部本期 Feature 完成后独立执行 overall 的完整链路 / 异常 / 回归与实际接收。共享规则不启动后台调度或真实并行引擎。
 

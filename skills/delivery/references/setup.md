@@ -59,7 +59,7 @@ python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-
 python .agents/skills/delivery/scripts/delivery.py guard --project . --id first-slice --task T01
 ```
 
-Feature 型 run 按本轮指令确定一个或多个模块，已明确指定时不重复询问；未指定或有歧义时收集选择，再逐项检查任务，例如 `guard --project . --id store --features F01 F02 --task T01`。模块须获得完整授权，授权后本轮可只执行指定任务。不指定 Feature 时仅查询状态，不能启动 Feature 子任务。取消或未回答不执行；宿主不支持多选弹框时使用编号列表。Python 不显示 GUI，详见 [记录契约](record.md)。
+Feature 型 run 按本轮指令确定一个或多个模块，已明确指定时不重复询问；未指定或有歧义时优先用原生多选统一提交，否则展示编号列表并让用户一次输入全部 Feature ID，完整提交后再逐项检查任务，例如 `guard --project . --id store --features F01 F02 --task T01`。模块须获得完整授权，授权后本轮可只执行指定任务。不指定 Feature 时仅查询状态，不能启动 Feature 子任务。首项 / 临时选择、取消或未回答不执行。Python 不显示 GUI，详见 [记录契约](record.md)。
 
 不带 --task 用于审批材料和整体验收；带 --task 用于具体任务开始 / 恢复前校验。`record_valid` 只表示记录自洽；`execution_ready` 在指定任务时仅表示该任务就绪，否则表示存在可执行任务；`batch_complete` 表示当前批准批次完成；`delivery_ready` 表示本期整体记录门槛齐备。它们都不验证业务语义、审批身份或报告真实性。用户无需手工运行命令或编辑内部字段。
 

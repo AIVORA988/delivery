@@ -1,4 +1,4 @@
 interface:
   display_name: "delivery-feature-run"
-  short_description: "执行本轮指定的已审批 Feature，范围不明时收集选择，逐模块验收与恢复"
-  default_prompt: "使用 $delivery-feature-run 核对当前已批准方案，按我本轮指定的 Feature 执行；未指定或有歧义时让我选择，再按依赖推进子任务。"
+  short_description: "执行已指定的已批 Feature，范围不明时收齐多选再执行，逐模块验收与恢复"
+  default_prompt: "使用 $delivery-feature-run 核对当前已批准方案，已明确 Feature 时直接校验执行；未指定或有歧义时优先原生多选，否则让我一次输入全部 Feature ID，完整提交后再按依赖串行执行，不因选中首项提前执行。"
